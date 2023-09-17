@@ -7,8 +7,9 @@
 
 #include <stdint.h>
 
-typedef struct sha256hash
+typedef union sha256hash
 {
+    uint8_t bytes[32];
     uint32_t words[8];
 } sha256hash_t;
 

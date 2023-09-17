@@ -5,8 +5,9 @@
 
 #include "fileio.h"
 
-#include <stdio.h>
 #include <errno.h>
+#include <stdio.h>
+#include <string.h>
 
 buffer_h read_file(const char *path)
 {
@@ -14,35 +15,30 @@ buffer_h read_file(const char *path)
     FILE *f = fopen(path, "r");
     if (!f)
     {
-        fprintf(stderr, "failed to open file at %s\n", path);
-        perror(errno);
+        fprintf(stderr, "failed to open file at %s: %s\n", path, strerror(errno));
         return buf;
     }
     if (fseek(f, 0, SEEK_END) != 0)
     {
-        fprintf(stderr, "failed to seek end of file at %s\n", path);
-        perror(errno);
+        fprintf(stderr, "failed to seek end of file at %s: %s\n", path, strerror(errno));
         return buf;
     }
     const long sz = ftell(f);
     if (sz < 0)
     {
-        fprintf(stderr, "failed to tell size of file at %s\n", path);
-        perror(errno);
+        fprintf(stderr, "failed to tell size of file at %s: %s\n", path, strerror(errno));
         return buf;
     }
     const size_t fsz = (size_t)sz;
     buf = buf_init(fsz);
     if (!buf)
     {
-        fprintf(stderr, "failed to allocate buffer for %zu bytets of file at %s\n", fsz, path);
-        perror(errno);
+        fprintf(stderr, "failed to allocate buffer for %zu bytets of file at %s: %s\n", fsz, path, strerror(errno));
         return buf;
     }
-    if (!fseek(f, 0, SEEK_SET))
+    if (fseek(f, 0, SEEK_SET) != 0)
     {
-        fprintf(stderr, "failed to seek beginning of file at %s\n", path);
-        perror(errno);
+        fprintf(stderr, "failed to seek beginning of file at %s: %s\n", path, strerror(errno));
         buf_free(buf);
         return NULL;
     }
@@ -54,8 +50,7 @@ buffer_h read_file(const char *path)
     }
     if (fclose(f) != 0)
     {
-        fprintf(stderr, "failed to close file at %s\n", path);
-        perror(errno);
+        fprintf(stderr, "failed to close file at %s: %s\n", path, strerror(errno));
     }
     return buf;
 }
@@ -65,8 +60,7 @@ size_t write_file(const char *path, buffer_h buf)
     FILE *f = fopen(path, "w");
     if (!f)
     {
-        fprintf(stderr, "failed to open file at %s\n", path);
-        perror(errno);
+        fprintf(stderr, "failed to open file at %s: %s\n", path, strerror(errno));
         return 0;
     }
     const size_t wsz = fwrite(buf_data(buf), 1, buf_size(buf), f);
@@ -76,8 +70,7 @@ size_t write_file(const char *path, buffer_h buf)
     }
     if (fclose(f) != 0)
     {
-        fprintf(stderr, "failed to close file at %s\n", path);
-        perror(errno);
+        fprintf(stderr, "failed to close file at %s: %s\n", path, strerror(errno));
     }
     return wsz;
 }

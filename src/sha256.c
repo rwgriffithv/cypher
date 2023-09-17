@@ -5,30 +5,24 @@
 
 #include "sha256.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
-uint64_t bitswap(uint64_t in)
+uint32_t bswap_32(uint32_t in)
 {
-    const uint64_t mask = 1;
-    uint64_t out = 0;
-    for (size_t i = 0; i < 8; ++i)
-    {
-        out = (out << 1) | (in & mask);
-        in = in >> 1;
-    }
-    return out;
+    return (in << 24) | ((in & 0xFF00) << 8) | ((in >> 8) & 0xFF00) | (in >> 24);
+}
+
+uint64_t bswap_64(uint64_t in)
+{
+    return (in << 56) | ((in & 0xFF00) << 40) | ((in & 0xFF0000) << 24) | ((in & 0xFF000000) << 8) | ((in >> 8) & 0xFF000000) | ((in >> 24) & 0xFF0000) | ((in >> 40) & 0xFF00) | (in >> 56);
 }
 
 uint32_t rotate_r(uint32_t val, size_t n)
 {
-    const uint32_t mask = 1;
-    const uint32_t hi = 0x80000000;
-    for (size_t i = 0; i < n; ++i)
-    {
-        val = (val & mask) ? ((val >> 1) | hi) : (val >> 1);
-    }
-    return val;
+    n = n % 32;
+    return (val >> n) | (n ? (val << (32 - n)) : 0);
 }
 
 sha256hash_t *sha256(buffer_h buf, sha256hash_t *out)
@@ -47,7 +41,7 @@ sha256hash_t *sha256(buffer_h buf, sha256hash_t *out)
         0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
     uint8_t end[64] = {0};
     end[0] = 0x80;                                                             /* 1 bit that starts padding */
-    const uint64_t len = bitswap((uint64_t)insz);                              /* big-endian length of original data */
+    const uint64_t len = bswap_64((uint64_t)(insz * 8));                       /* big-endian bitlength of original data */
     const size_t npz = sizeof(end) - ((insz + 1 + sizeof(len)) % sizeof(end)); /* number of padded zero bytes */
     const size_t apsz = 1 + npz + sizeof(len);                                 /* total number of bytes to append */
     memcpy(end + 1 + npz, &len, sizeof(len));
@@ -57,12 +51,17 @@ sha256hash_t *sha256(buffer_h buf, sha256hash_t *out)
         return NULL;
     }
     const size_t nchunks = buf_size(buf) / 64; /* number of 512 bit chunks */
-    uint8_t *chunk = buf_data(buf);
-    uint32_t w[64]; /* words used per-chunk */
-    uint32_t a[8];  /* a, b, c, d, e, f, g, h used per-chunk */
-    for (size_t c = 0; c < nchunks; ++c, chunk += 64)
+    const uint32_t *chunk = buf_data(buf);     /* 16 32-bit words per chunk */
+    uint32_t w[64];                            /* words used per-chunk */
+    uint32_t a[8];                             /* a, b, c, d, e, f, g, h used per-chunk */
+    /* for (size_t c = 0; c < nchunks; ++c, chunk += 64)*/
+    for (size_t c = 0; c < nchunks; ++c, chunk += 16)
     {
-        memcpy(chunk, w, 16 * sizeof(w[0]));
+        /*memcpy(w, chunk, 64); */
+        for (size_t i = 0; i < 16; ++i)
+        {
+            w[i] = bswap_32(chunk[i]);
+        }
         for (size_t i = 16; i < 64; ++i)
         {
             const uint32_t s0 = rotate_r(w[i - 15], 7) ^ rotate_r(w[i - 15], 18) ^ (w[i - 15] >> 3);
@@ -78,10 +77,7 @@ sha256hash_t *sha256(buffer_h buf, sha256hash_t *out)
             const uint32_t s0 = rotate_r(a[0], 2) ^ rotate_r(a[0], 13) ^ rotate_r(a[0], 22);
             const uint32_t maj = (a[0] & a[1]) ^ (a[0] & a[2]) ^ (a[1] & a[2]);
             const uint32_t t2 = s0 + maj;
-            for (size_t j = 7; j > 0; --j)
-            {
-                a[j] = a[j - 1];
-            }
+            memcpy(a + 1, a, sizeof(a) - sizeof(a[0]));
             a[0] = t1 + t2;
             a[4] += t1;
         }
@@ -91,7 +87,11 @@ sha256hash_t *sha256(buffer_h buf, sha256hash_t *out)
         }
     }
     buf_resize(buf, insz);
-    memcpy(out->words, h, sizeof(h));
+    /* store in little-endian */
+    for (size_t i = 0; i < 8; ++i)
+    {
+        out->words[7 - i] = h[i];
+    }
     return out;
 }
 
@@ -101,15 +101,13 @@ buffer_h sha256_hexstr(sha256hash_t *hash)
     buffer_h buf = buf_init(n);
     if (!buf)
     {
-        fprintf(stderr, "failed to make buffer for sha256 hex string\n");
+        fprintf(stderr, "failed to make buffer for sha256 hex string: %s\n", strerror(errno));
         return NULL;
     }
-    char *str = (char *)buf_data(buf);
-    const size_t nw = 2 * sizeof(hash->words[0]);
-    for (size_t i = 0; i < 8; ++i, str += nw)
+    char *str = buf_data(buf);
+    for (size_t i = 0; i < 32; ++i, str += 2)
     {
-        snprintf(str, nw, "%0*X", nw, hash->words[i]);
+        snprintf(str, 3, "%02X", hash->bytes[31 - i]);
     }
-    *str = '\0';
     return buf;
 }

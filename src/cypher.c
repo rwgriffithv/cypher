@@ -6,15 +6,16 @@
 #include "cypher.h"
 #include "sha256.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
-sha256hash_t *hash_key(char *key, sha256hash_t *out)
+sha256hash_t *hash_key(const char *key, sha256hash_t *out)
 {
     buffer_h buf_key = buf_copy(key, strlen(key));
     if (!buf_key)
     {
-        fprintf(stderr, "failed to make buffer for key hashing\n");
+        fprintf(stderr, "failed to make buffer for key hashing: %s\n", strerror(errno));
         return NULL;
     }
     out = sha256(buf_key, out);
@@ -22,12 +23,12 @@ sha256hash_t *hash_key(char *key, sha256hash_t *out)
     buffer_h hash_str = sha256_hexstr(out);
     if (hash_str)
     {
-        printf("original hash string: %s\n", (char *)buf_data(hash_str));
+        printf("SHA256 hash: 0x%s\n", buf_data(hash_str));
         buf_free(hash_str);
     }
     else
     {
-        fprintf(stderr, "failed to get original hash string to print\n");
+        fprintf(stderr, "failed to get SHA256 hash string to print\n");
     }
     const uint32_t s = out->words[0] + out->words[5] + out->words[0] + out->words[7];
     for (size_t i = 0; i < 8; ++i)
@@ -37,7 +38,7 @@ sha256hash_t *hash_key(char *key, sha256hash_t *out)
     hash_str = sha256_hexstr(out);
     if (hash_str)
     {
-        printf("final hash string: %s\n", (char *)buf_data(hash_str));
+        printf("final hash: 0x%s\n", buf_data(hash_str));
         buf_free(hash_str);
     }
     else
@@ -55,7 +56,7 @@ buffer_h cypher(buffer_h buf, const char *key)
         fprintf(stderr, "failed to hash key\n");
         return NULL;
     }
-    uint32_t *b32 = (uint32_t *)buf_data(buf);
+    uint32_t *b32 = buf_data(buf);
     size_t i;
     for (i = 0; i < buf_size(buf) / sizeof(uint32_t); ++i)
     {

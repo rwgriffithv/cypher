@@ -19,6 +19,7 @@ app: $(appname)
 
 $(appname): $(objs)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(appname) $(objs)
+	chmod +x $(appname)
 	mv $(appname) $(bindir)
 
 ### ================ object targets ================
