@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-buffer_h read_file(char *path)
+buffer_h read_file(const char *path)
 {
     buffer_h buf = NULL;
     FILE *f = fopen(path, "r");
@@ -33,7 +33,7 @@ buffer_h read_file(char *path)
     }
     const size_t fsz = (size_t)sz;
     buf = buf_init(fsz);
-    if (!buf || buf_size(buf) != fsz)
+    if (!buf)
     {
         fprintf(stderr, "failed to allocate buffer for %zu bytets of file at %s\n", fsz, path);
         perror(errno);
@@ -60,7 +60,7 @@ buffer_h read_file(char *path)
     return buf;
 }
 
-size_t write_file(char *path, buffer_h buf)
+size_t write_file(const char *path, buffer_h buf)
 {
     FILE *f = fopen(path, "w");
     if (!f)

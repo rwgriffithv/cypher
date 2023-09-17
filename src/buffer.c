@@ -17,29 +17,36 @@ typedef struct buffer
 buffer_h buf_init(size_t sz)
 {
     buffer_h buf = malloc(sizeof(buffer_t));
-    if (buf)
+    void *data = calloc(sz, sizeof(char));
+    if (buf && data)
     {
-        buf->data = calloc(sz, sizeof(char));
-        buf->capacity = buf->data ? sz : 0;
-        buf->size = buf->capacity;
+        buf->data = data;
+        buf->capacity = sz;
+        buf->size = sz;
+    }
+    else
+    {
+        free(buf);
+        free(data);
+        buf = NULL;
     }
     return buf;
 }
 
-buffer_h buf_copy(void *src, size_t sz)
+buffer_h buf_copy(const void *src, size_t sz)
 {
     buffer_h buf = buf_init(sz);
-    if (buf_size(buf))
+    if (buf)
     {
         memcpy(buf->data, src, sz);
     }
     return buf;
 }
 
-buffer_h buf_concat(void *src_0, size_t sz_0, void *src_1, size_t sz_1)
+buffer_h buf_concat(const void *src_0, size_t sz_0, const void *src_1, size_t sz_1)
 {
     buffer_h buf = buf_init(sz_0 + sz_1);
-    if (buf_size(buf))
+    if (buf)
     {
         memcpy(buf->data, src_0, sz_0);
         memcpy(buf->data + sz_0, src_1, sz_1);
@@ -49,7 +56,7 @@ buffer_h buf_concat(void *src_0, size_t sz_0, void *src_1, size_t sz_1)
 
 void buf_free(buffer_h buf)
 {
-    if (buf->data)
+    if (buf && buf->data)
     {
         free(buf->data);
     }
@@ -84,10 +91,10 @@ void *buf_data(buffer_h buf)
 
 size_t buf_size(buffer_h buf)
 {
-    return buf->size;
+    return buf ? buf->size : 0;
 }
 
-size_t buf_push(buffer_h buf, void *src, size_t sz)
+size_t buf_push(buffer_h buf, const void *src, size_t sz)
 {
     const size_t insz = buf->size;
     const size_t reqsz = insz + sz;
@@ -104,7 +111,7 @@ size_t buf_push(buffer_h buf, void *src, size_t sz)
     return buf->size;
 }
 
-bool buf_push_strict(buffer_h buf, void *src, size_t sz)
+size_t buf_push_strict(buffer_h buf, const void *src, size_t sz)
 {
     const size_t insz = buf->size;
     if (buf_resize(buf, buf->size + sz))

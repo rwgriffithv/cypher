@@ -5,7 +5,6 @@
 
 #include "sha256.h"
 
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -48,8 +47,8 @@ sha256hash_t *sha256(buffer_h buf, sha256hash_t *out)
         0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
     uint8_t end[64] = {0};
     end[0] = 0x80;                                                             /* 1 bit that starts padding */
-    const size_t npz = sizeof(end) - ((insz + 1 + sizeof(len)) % sizeof(end)); /* number of padded zero bytes */
     const uint64_t len = bitswap((uint64_t)insz);                              /* big-endian length of original data */
+    const size_t npz = sizeof(end) - ((insz + 1 + sizeof(len)) % sizeof(end)); /* number of padded zero bytes */
     const size_t apsz = 1 + npz + sizeof(len);                                 /* total number of bytes to append */
     memcpy(end + 1 + npz, &len, sizeof(len));
     if (!buf_push_strict(buf, end, apsz)) /* copy padding and length to end of in (reset at end) */
@@ -63,7 +62,7 @@ sha256hash_t *sha256(buffer_h buf, sha256hash_t *out)
     uint32_t a[8];  /* a, b, c, d, e, f, g, h used per-chunk */
     for (size_t c = 0; c < nchunks; ++c, chunk += 64)
     {
-        memcpy(chunk, w, 16 * sizeof(uint32_t));
+        memcpy(chunk, w, 16 * sizeof(w[0]));
         for (size_t i = 16; i < 64; ++i)
         {
             const uint32_t s0 = rotate_r(w[i - 15], 7) ^ rotate_r(w[i - 15], 18) ^ (w[i - 15] >> 3);
@@ -94,4 +93,23 @@ sha256hash_t *sha256(buffer_h buf, sha256hash_t *out)
     buf_resize(buf, insz);
     memcpy(out->words, h, sizeof(h));
     return out;
+}
+
+buffer_h sha256_hexstr(sha256hash_t *hash)
+{
+    const size_t n = 2 * sizeof(hash->words) + 1; /* null terminated */
+    buffer_h buf = buf_init(n);
+    if (!buf)
+    {
+        fprintf(stderr, "failed to make buffer for sha256 hex string\n");
+        return NULL;
+    }
+    char *str = (char *)buf_data(buf);
+    const size_t nw = 2 * sizeof(hash->words[0]);
+    for (size_t i = 0; i < 8; ++i, str += nw)
+    {
+        snprintf(str, nw, "%0*X", nw, hash->words[i]);
+    }
+    *str = '\0';
+    return buf;
 }
