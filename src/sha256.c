@@ -25,9 +25,8 @@ uint32_t rotate_r(uint32_t val, size_t n)
     return (val >> n) | (n ? (val << (32 - n)) : 0);
 }
 
-sha256hash_t *sha256(buffer_h buf, sha256hash_t *out)
+sha256hash_t *sha256(bufferedio_t *bio, sha256hash_t *out)
 {
-    const size_t insz = buf_size(buf);
     uint32_t h[8] = {
         0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
     const uint32_t k[64] = {
@@ -39,25 +38,24 @@ sha256hash_t *sha256(buffer_h buf, sha256hash_t *out)
         0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
         0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
         0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
-    uint8_t end[64] = {0};
-    end[0] = 0x80;                                                             /* 1 bit that starts padding */
-    const uint64_t len = bswap_64((uint64_t)(insz * 8));                       /* big-endian bitlength of original data */
-    const size_t npz = sizeof(end) - ((insz + 1 + sizeof(len)) % sizeof(end)); /* number of padded zero bytes */
-    const size_t apsz = 1 + npz + sizeof(len);                                 /* total number of bytes to append */
-    memcpy(end + 1 + npz, &len, sizeof(len));
-    if (!buf_push_strict(buf, end, apsz)) /* copy padding and length to end of in (reset at end) */
+    uint32_t chunk[16];
+    uint32_t w[64]; /* words used per-chunk */
+    uint32_t a[8];  /* a, b, c, d, e, f, g, h used per-chunk */
+    size_t insz = 0;
+    int reading = 1;
+    while (reading)
     {
-        fprintf(stderr, "failed to allocate memory for %zu bytes for sha256 to append original data\n", apsz);
-        return NULL;
-    }
-    const size_t nchunks = buf_size(buf) / 64; /* number of 512 bit chunks */
-    const uint32_t *chunk = buf_data(buf);     /* 16 32-bit words per chunk */
-    uint32_t w[64];                            /* words used per-chunk */
-    uint32_t a[8];                             /* a, b, c, d, e, f, g, h used per-chunk */
-    /* for (size_t c = 0; c < nchunks; ++c, chunk += 64)*/
-    for (size_t c = 0; c < nchunks; ++c, chunk += 16)
-    {
-        /*memcpy(w, chunk, 64); */
+        const size_t rsz = bio_read(bio, chunk, sizeof(chunk));
+        if (rsz != sizeof(chunk))
+        {
+            uint8_t *end = (uint8_t *)chunk + rsz;
+            end[0] = 0x80;                                                                 /* 1 bit that starts padding */
+            const uint64_t len = bswap_64((uint64_t)(insz * 8));                           /* big-endian bitlength of original data */
+            const size_t npz = sizeof(chunk) - ((insz + 1 + sizeof(len)) % sizeof(chunk)); /* number of padded zero bytes */
+            memset(end + 1, 0, npz);
+            memcpy(end + 1 + npz, &len, sizeof(len));
+            reading = 0;
+        }
         for (size_t i = 0; i < 16; ++i)
         {
             w[i] = bswap_32(chunk[i]);
@@ -86,7 +84,6 @@ sha256hash_t *sha256(buffer_h buf, sha256hash_t *out)
             h[i] += a[i];
         }
     }
-    buf_resize(buf, insz);
     /* store in little-endian */
     for (size_t i = 0; i < 8; ++i)
     {
@@ -95,10 +92,10 @@ sha256hash_t *sha256(buffer_h buf, sha256hash_t *out)
     return out;
 }
 
-buffer_h sha256_hexstr(sha256hash_t *hash)
+buffer_t *sha256_hexstr(sha256hash_t *hash)
 {
     const size_t n = 2 * sizeof(hash->words) + 1; /* null terminated */
-    buffer_h buf = buf_init(n);
+    buffer_t *buf = buf_init(n);
     if (!buf)
     {
         fprintf(stderr, "failed to make buffer for sha256 hex string: %s\n", strerror(errno));

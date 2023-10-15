@@ -3,7 +3,10 @@
  * @author Rob Griffith
  */
 
-#include "buffer.h"
+#ifndef SHA256_H
+#define SHA256_H
+
+#include "bufferedio.h"
 
 #include <stdint.h>
 
@@ -13,6 +16,8 @@ typedef union sha256hash
     uint32_t words[8];
 } sha256hash_t;
 
-sha256hash_t *sha256(buffer_h buf, sha256hash_t *out);
+sha256hash_t *sha256(bufferedio_t *bio, sha256hash_t *out);
 
-buffer_h sha256_hexstr(sha256hash_t *hash);
+buffer_t *sha256_hexstr(sha256hash_t *hash);
+
+#endif

@@ -3,6 +3,11 @@
  * @author Rob Griffith
  */
 
-#include "buffer.h"
+#ifndef CYPHER_H
+#define CYPHER_H
 
-buffer_h cypher(buffer_h buf, const char *key);
+#include "bufferedio.h"
+
+int cypher(bufferedio_t *bio_in, bufferedio_t *key, bufferedio_t *bio_out);
+
+#endif

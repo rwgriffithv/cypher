@@ -3,8 +3,21 @@
  * @author Rob Griffith
  */
 
-#include "buffer.h"
+#ifndef FILEIO_H
+#define FILEIO_H
 
-buffer_h read_file(const char *path);
+#include "bufferedio.h"
 
-size_t write_file(const char *path, buffer_h buf);
+buffer_t *fio_read_all(const char *path);
+
+size_t fio_write_all(const char *path, buffer_t *buf);
+
+int fio_init(bufferedio_t *fb, size_t bufsz);
+
+int fio_open(bufferedio_t *fb, const char *path, const char *mode);
+
+int fio_close(bufferedio_t *fb);
+
+void fio_free(bufferedio_t *fb);
+
+#endif

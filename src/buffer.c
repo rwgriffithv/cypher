@@ -7,21 +7,22 @@
 
 #include <string.h>
 
-typedef struct buffer
+struct buffer
 {
     void *data;
     size_t size;
     size_t capacity;
-} buffer_t;
+};
 
-buffer_h buf_init(size_t sz)
+buffer_t *buf_init(size_t sz)
 {
-    buffer_h buf = malloc(sizeof(buffer_t));
-    void *data = calloc(sz, sizeof(char));
+    const size_t cap = sz >= sizeof(size_t) ? sz : sizeof(size_t);
+    buffer_t *buf = malloc(sizeof(buffer_t));
+    void *data = calloc(1, cap);
     if (buf && data)
     {
         buf->data = data;
-        buf->capacity = sz;
+        buf->capacity = cap;
         buf->size = sz;
     }
     else
@@ -33,9 +34,9 @@ buffer_h buf_init(size_t sz)
     return buf;
 }
 
-buffer_h buf_copy(const void *src, size_t sz)
+buffer_t *buf_copy(const void *src, size_t sz)
 {
-    buffer_h buf = buf_init(sz);
+    buffer_t *buf = buf_init(sz);
     if (buf)
     {
         memcpy(buf->data, src, sz);
@@ -43,9 +44,9 @@ buffer_h buf_copy(const void *src, size_t sz)
     return buf;
 }
 
-buffer_h buf_concat(const void *src_0, size_t sz_0, const void *src_1, size_t sz_1)
+buffer_t *buf_concat(const void *src_0, size_t sz_0, const void *src_1, size_t sz_1)
 {
-    buffer_h buf = buf_init(sz_0 + sz_1);
+    buffer_t *buf = buf_init(sz_0 + sz_1);
     if (buf)
     {
         memcpy(buf->data, src_0, sz_0);
@@ -54,7 +55,7 @@ buffer_h buf_concat(const void *src_0, size_t sz_0, const void *src_1, size_t sz
     return buf;
 }
 
-void buf_free(buffer_h buf)
+void buf_free(buffer_t *buf)
 {
     if (buf && buf->data)
     {
@@ -63,7 +64,7 @@ void buf_free(buffer_h buf)
     free(buf);
 }
 
-size_t buf_resize(buffer_h buf, size_t sz)
+size_t buf_resize(buffer_t *buf, size_t sz)
 {
     if (sz <= buf->capacity)
     {
@@ -76,7 +77,7 @@ size_t buf_resize(buffer_h buf, size_t sz)
     return buf->size;
 }
 
-size_t buf_resize_strict(buffer_h buf, size_t sz)
+size_t buf_resize_strict(buffer_t *buf, size_t sz)
 {
     buf->data = realloc(buf->data, sz);
     buf->capacity = buf->data ? sz : 0;
@@ -84,17 +85,27 @@ size_t buf_resize_strict(buffer_h buf, size_t sz)
     return buf->size;
 }
 
-void *buf_data(buffer_h buf)
+void *buf_data(buffer_t *buf)
 {
     return buf->data;
 }
 
-size_t buf_size(buffer_h buf)
+const void *buf_cdata(const buffer_t *buf)
 {
-    return buf ? buf->size : 0;
+    return buf->data;
 }
 
-size_t buf_push(buffer_h buf, const void *src, size_t sz)
+size_t buf_size(const buffer_t *buf)
+{
+    return buf->size;
+}
+
+size_t buf_capacity(const buffer_t *buf)
+{
+    return buf->capacity;
+}
+
+size_t buf_push(buffer_t *buf, const void *src, size_t sz)
 {
     const size_t insz = buf->size;
     const size_t reqsz = insz + sz;
@@ -111,7 +122,7 @@ size_t buf_push(buffer_h buf, const void *src, size_t sz)
     return buf->size;
 }
 
-size_t buf_push_strict(buffer_h buf, const void *src, size_t sz)
+size_t buf_push_strict(buffer_t *buf, const void *src, size_t sz)
 {
     const size_t insz = buf->size;
     if (buf_resize(buf, buf->size + sz))
