@@ -7,6 +7,8 @@
 
 #include <string.h>
 
+#include <stdio.h>
+
 struct buffer
 {
     void *data;
@@ -108,26 +110,59 @@ size_t buf_capacity(const buffer_t *buf)
 size_t buf_push(buffer_t *buf, const void *src, size_t sz)
 {
     const size_t insz = buf->size;
-    const size_t reqsz = insz + sz;
-    while (buf->capacity < reqsz)
+    size_t reqsz = insz + sz;
+    if (sz <= buf->capacity - buf->size)
     {
-        /* double capacity until requirement met */
-        buf->capacity = buf->capacity << 1;
-    }
-    if (buf_resize(buf, buf->capacity))
-    {
-        memcpy(((char *)buf->data) + insz, src, sz);
+        /* simple copy */
+        memcpy((char *)buf->data + insz, src, sz);
         buf->size = reqsz;
     }
-    return buf->size;
+    else
+    {
+        /* resize */
+        const size_t maxsz = ~(size_t)0 - insz;
+        sz = sz > maxsz ? maxsz : sz;
+        reqsz = insz + sz;
+        const size_t dcap = buf->capacity * 2;
+        const size_t reqcap = dcap < reqsz ? reqsz : dcap;
+        if (buf_resize_strict(buf, reqcap))
+        {
+            memcpy((char *)buf->data + insz, src, sz);
+            buf->size = reqsz;
+        }
+        else
+        {
+            sz = 0;
+        }
+    }
+    return sz;
 }
 
 size_t buf_push_strict(buffer_t *buf, const void *src, size_t sz)
 {
     const size_t insz = buf->size;
-    if (buf_resize(buf, buf->size + sz))
+    size_t reqsz = insz + sz;
+    if (sz <= buf->capacity - buf->size)
     {
-        memcpy(((char *)buf->data) + insz, src, sz);
+        /* simple copy */
+        memcpy((char *)buf->data + insz, src, sz);
+        buf->size = reqsz;
     }
-    return buf->size;
+    else
+    {
+        /* resize */
+        const size_t maxsz = ~(size_t)0 - insz;
+        sz = sz > maxsz ? maxsz : sz;
+        reqsz = insz + sz;
+        if (buf_resize_strict(buf, reqsz))
+        {
+            memcpy((char *)buf->data + insz, src, sz);
+            buf->size = reqsz;
+        }
+        else
+        {
+            sz = 0;
+        }
+    }
+    return sz;
 }

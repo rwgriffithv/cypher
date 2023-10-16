@@ -16,6 +16,12 @@
 
 int main(int argc, char **argv)
 {
+    /* core objects */
+    int rv = 0;
+    bufferedio_t infile = {0};
+    bufferedio_t outfile = {0};
+    bufferedio_t key = {0};
+    /* cli parsing */
     option_t opts[NOPTS] = {
         {'h', "help", "print application usage", FLAG, NULL},
         {'b', "bufsize", "set buffer size for file io", PARAM, "1028"},
@@ -32,60 +38,57 @@ int main(int argc, char **argv)
     if (cli_parse(argc, argv, &cli) < 0)
     {
         print_usage(argv[0], &cli);
-        return 1;
+        goto error;
     }
     if (cli.opts[0].val)
     {
         print_usage(argv[0], &cli);
     }
-    int rv = 0;
-    bufferedio_t infile;
-    bufferedio_t key;
-    bufferedio_t outfile;
-    buffer_t *b;
-    /* buffer size */
-    int bufsz = atoi(cli.opts[1].val);
+    const int bufsz = atoi(cli.opts[1].val);
     /* initialization */
     if (bufsz <= 0)
     {
-        /* all in memory */
+        /* unlimited buffer, all in memory */
         printf("buffer size %d <= 0, will use unlimited size\n", bufsz);
-        b = fio_read_all(cli.args[0].val);
-        rv = b ? rv : 1;
-        bio_wrap(&infile, b);
+        bio_wrap(&infile, fio_read_all(cli.args[0].val));
+        bio_wrap(&outfile, buf_init(0));
         if (cli.opts[2].val)
         {
-            b = fio_read_all(cli.args[1].val);
-            rv = b ? rv : 1;
-            bio_wrap(&key, b);
+            bio_wrap(&key, fio_read_all(cli.args[1].val));
         }
-        b = buf_init(0);
-        rv = b ? rv : 1;
-        bio_wrap(&outfile, b);
     }
     else
     {
-        rv = fio_init(&infile, bufsz) || fio_open(&infile, cli.args[0].val, "r") ? 1 : rv;
-        rv = cli.opts[2].val && (fio_init(&key, bufsz) || fio_open(&key, cli.args[1].val, "r")) ? 1 : rv;
-        rv = fio_init(&outfile, bufsz) || fio_open(&outfile, cli.opts[3].val, "w") ? 1 : rv;
+        /* restricted buffered io */
+        fio_init(&infile, bufsz) && fio_open(&infile, cli.args[0].val, "r");
+        fio_init(&outfile, bufsz) && fio_open(&outfile, cli.opts[3].val, "w");
+        if (cli.opts[2].val)
+        {
+            fio_init(&key, bufsz) && fio_open(&key, cli.args[1].val, "r");
+        }
     }
     if (!cli.opts[2].val)
     {
-        b = buf_copy(cli.args[1].val, strlen(cli.args[1].val));
-        rv = b ? rv : 1;
-        bio_wrap(&key, b);
+        bio_wrap(&key, buf_copy(cli.args[1].val, strlen(cli.args[1].val)));
     }
-    if (!rv)
+    /* check initialization */
+    if (!(bio_status(&infile) > BIO_STATUS_INIT && bio_status(&outfile) > BIO_STATUS_INIT && bio_status(&key) > BIO_STATUS_INIT))
     {
-        /* work */
-        rv = cypher(&infile, &key, &outfile);
-        if (bufsz <= 0)
-        {
-            rv = fio_write_all(cli.opts[3].val, outfile.data.buf) == buf_size(outfile.data.buf) ? rv : 1;
-        }
+        fprintf(stderr, "initialization failed\n");
+        goto error;
     }
-    fio_free(&infile);
-    fio_free(&key);
-    fio_free(&outfile);
+    /* work */
+    rv = cypher(&infile, &key, &outfile);
+    if (bufsz <= 0 && fio_write_all(cli.opts[3].val, outfile.data.buf) != buf_size(outfile.data.buf))
+    {
+        goto error;
+    }
+    goto end;
+error:
+    rv = 1;
+end:
+    bio_dfree(&infile);
+    bio_dfree(&key);
+    bio_dfree(&outfile);
     return rv;
 }

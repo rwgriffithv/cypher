@@ -75,86 +75,67 @@ size_t fio_write_all(const char *path, buffer_t *buf)
     return wsz;
 }
 
+int _fio_status(const bio_data_t *bd)
+{
+    int rv = -1;
+    if (bd->buf)
+    {
+        rv = bd->opaque ? 1 : 0;
+    }
+    return rv;
+}
+
 size_t _fio_read(bio_data_t *bd, void *data, size_t sz)
 {
     /*
     get bytes from internal buffer when possible
-    refill buffer as needed
+    refill buffer as needed (only once)
+    relies on bio_read re-trying until complete or 0
     */
-    const size_t osz = sz;
     size_t rsz = buf_size(bd->buf) - bd->offset;
-    char *src = buf_data(bd->buf);
-    char *dst = data;
-    while (rsz < sz)
+    if (!rsz)
     {
-        memcpy(dst, src + bd->offset, rsz);
-        sz -= rsz;
-        dst += rsz;
+        /* attempt to refill buffer */
         bd->offset = 0;
-        rsz = fread(src, buf_capacity(bd->buf), 1, bd->opaque);
+        rsz = fread(buf_data(bd->buf), 1, buf_capacity(bd->buf), bd->opaque);
         buf_resize(bd->buf, rsz);
-        if (rsz == 0)
-        {
-            /* failed to read anything at all */
-            return osz - sz;
-        }
     }
-    memcpy(dst, src + bd->offset, sz);
-    bd->offset += sz;
+    const size_t osz = rsz < sz ? rsz : sz;
+    memcpy(data, (const char *)buf_cdata(bd->buf) + bd->offset, osz);
+    bd->offset += osz;
     return osz;
 }
 
-size_t _fio_write(bio_data_t *bd, void *data, size_t sz)
+size_t _fio_write(bio_data_t *bd, const void *data, size_t sz)
 {
     /*
     write bytes to internal buffer when possible
-    write buffer to file when full
+    write buffer to file when full (only once)
+    relies on bio_write re-trying until complete or 0
     */
-    const size_t osz = 0;
     const size_t cap = buf_capacity(bd->buf);
     size_t wsz = cap - buf_size(bd->buf);
-    char *dst = buf_data(bd->buf);
-    char *src = data;
-    while (wsz < sz)
+    if (!wsz)
     {
-        buf_push_strict(bd->buf, src, wsz);
-        sz -= wsz;
-        src += wsz;
-        wsz = fwrite(dst + bd->offset, cap - bd->offset, 1, bd->opaque);
-        bd->offset += wsz;
-        if (wsz == 0)
+        /* attempt to empty buffer */
+        bd->offset += fwrite((const char *)buf_cdata(bd->buf) + bd->offset, 1, buf_size(bd->buf) - bd->offset, bd->opaque);
+        if (bd->offset < cap)
         {
-            /* failed to write anything at all */
-            return osz - sz;
+            /* failed to write entire buffer */
+            return 0;
         }
-        else if (bd->offset < cap)
-        {
-            /* partial write, reattempt next loop */
-            wsz = 0;
-        }
-        else
-        {
-            buf_resize(bd->buf, 0);
-            bd->offset = 0;
-            wsz = cap;
-        }
+        buf_resize(bd->buf, 0);
+        bd->offset = 0;
+        wsz = cap;
     }
-    buf_push_strict(bd->buf, src, sz);
-    return osz;
+    const size_t osz = wsz < sz ? wsz : sz;
+    return buf_push_strict(bd->buf, data, osz);
 }
 
 void _fio_flush(bio_data_t *bd)
 {
     /* flush buffer to file (should be invoked before seek) */
-    size_t wsz = 0;
-    size_t sz = buf_size(bd->buf);
-    char *src = buf_data(bd->buf) + bd->offset;
-    do
-    {
-        wsz = fwrite(src, sz, 1, bd->opaque);
-        src += wsz;
-        sz -= wsz;
-    } while (wsz > 0);
+    fwrite((const char *)buf_cdata(bd->buf) + bd->offset, 1, buf_size(bd->buf) - bd->offset, bd->opaque);
     buf_resize(bd->buf, 0);
     bd->offset = 0;
 }
@@ -167,16 +148,36 @@ int _fio_seek(bio_data_t *bd, long offset, int whence)
     return fseek(bd->opaque, offset, whence);
 }
 
+void _fio_dfree(bio_data_t *bd)
+{
+    if (bd->buf && bd->opaque)
+    {
+        _fio_flush(bd);
+        fclose(bd->opaque);
+        bd->opaque = NULL;
+    }
+    buf_free(bd->buf);
+    bd->buf = NULL;
+}
+
 int fio_init(bufferedio_t *fb, size_t bufsz)
 {
     fb->data.buf = buf_init(bufsz);
     fb->data.offset = 0;
     fb->data.opaque = NULL;
+    fb->status = &_fio_status;
     fb->read = &_fio_read;
     fb->write = &_fio_write;
     fb->flush = &_fio_flush;
     fb->seek = &_fio_seek;
-    return fb->data.buf ? 0 : 1;
+    fb->dfree = &_fio_dfree;
+    int rv = 0;
+    if (fb->data.buf)
+    {
+        buf_resize(fb->data.buf, 0);
+        rv = 1;
+    }
+    return rv;
 }
 
 int fio_open(bufferedio_t *fb, const char *path, const char *mode)
@@ -188,20 +189,12 @@ int fio_open(bufferedio_t *fb, const char *path, const char *mode)
 
 int fio_close(bufferedio_t *fb)
 {
-    int rv = EOF;
+    int rv = 0;
     if (fb->data.opaque)
     {
+        bio_flush(fb);
         rv = fclose(fb->data.opaque);
         fb->data.opaque = NULL;
     }
     return rv;
-}
-
-void fio_free(bufferedio_t *fb)
-{
-    if (fb)
-    {
-        fio_close(fb);
-        buf_free(fb->data.buf);
-    }
 }

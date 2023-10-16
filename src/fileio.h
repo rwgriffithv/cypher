@@ -18,6 +18,4 @@ int fio_open(bufferedio_t *fb, const char *path, const char *mode);
 
 int fio_close(bufferedio_t *fb);
 
-void fio_free(bufferedio_t *fb);
-
 #endif
