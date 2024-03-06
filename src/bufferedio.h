@@ -17,9 +17,9 @@
 
 typedef struct bio_data
 {
-    buffer_t *buf;
+    buffer_t buf;
     size_t offset;
-    void *opaque;
+    buffer_t opaque;
 } bio_data_t;
 
 typedef struct bufferedio

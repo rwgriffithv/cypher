@@ -20,6 +20,7 @@ typedef struct option
     const char *name_l;
     const char *desc;
     const opttype_t type;
+    const char *def;
     const char *val;
 } option_t;
 
@@ -38,7 +39,7 @@ typedef struct cli
     argument_t *args;
 } cli_t;
 
-void print_usage(const char* bin, const cli_t *cli);
+void print_usage(const char *bin, const cli_t *cli);
 
 int cli_parse(int argc, char **argv, cli_t *cli);
 

@@ -16,8 +16,8 @@ typedef union sha256hash
     uint32_t words[8];
 } sha256hash_t;
 
-sha256hash_t *sha256(bufferedio_t *bio, sha256hash_t *out);
+void sha256(bufferedio_t *bio, sha256hash_t *out);
 
-buffer_t *sha256_hexstr(sha256hash_t *hash);
+void sha256_hexstr(sha256hash_t *hash, buffer_t *out);
 
 #endif

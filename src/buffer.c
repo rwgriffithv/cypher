@@ -9,61 +9,47 @@
 
 #include <stdio.h>
 
-struct buffer
+void buf_init(buffer_t *buf, size_t cap)
 {
-    void *data;
-    size_t size;
-    size_t capacity;
-};
-
-buffer_t *buf_init(size_t sz)
-{
-    const size_t cap = sz >= sizeof(size_t) ? sz : sizeof(size_t);
-    buffer_t *buf = malloc(sizeof(buffer_t));
-    void *data = calloc(1, cap);
-    if (buf && data)
-    {
-        buf->data = data;
-        buf->capacity = cap;
-        buf->size = sz;
-    }
-    else
-    {
-        free(buf);
-        free(data);
-        buf = NULL;
-    }
-    return buf;
+    buf->data = realloc(buf->data, cap);
+    buf->capacity = buf->data ? cap : 0;
+    buf->size = 0;
 }
 
-buffer_t *buf_copy(const void *src, size_t sz)
+void buf_copy(buffer_t *buf, const void *src, size_t sz)
 {
-    buffer_t *buf = buf_init(sz);
-    if (buf)
+    buf_init(buf, sz);
+    if (buf->data)
     {
         memcpy(buf->data, src, sz);
     }
-    return buf;
 }
 
-buffer_t *buf_concat(const void *src_0, size_t sz_0, const void *src_1, size_t sz_1)
+void buf_move(buffer_t *buf, buffer_t *src)
 {
-    buffer_t *buf = buf_init(sz_0 + sz_1);
-    if (buf)
-    {
-        memcpy(buf->data, src_0, sz_0);
-        memcpy(buf->data + sz_0, src_1, sz_1);
-    }
-    return buf;
+    buf->data = src->data;
+    buf->capacity = src->capacity;
+    buf->size = src->size;
+    /* clear source */
+    src->data = NULL;
+    src->capacity = 0;
+    src->size = 0;
 }
 
 void buf_free(buffer_t *buf)
 {
-    if (buf && buf->data)
+    if (buf)
     {
         free(buf->data);
+        buf->data = NULL;
+        buf->capacity = 0;
+        buf->size = 0;
     }
-    free(buf);
+}
+
+void buf_clear(buffer_t *buf)
+{
+    buf->size = 0;
 }
 
 size_t buf_resize(buffer_t *buf, size_t sz)

@@ -14,7 +14,6 @@ options:
     -h
         print application usage
         TYPE: FLAG
-        DEFAULT: true
     --bufsize
     -b
         set buffer size for file io

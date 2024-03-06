@@ -16,12 +16,15 @@ const char *get_opt_type_str(opttype_t type)
         return "FLAG";
     case PARAM:
         return "PARAMETER";
+    default:
+        return NULL;
     }
 }
 
 option_t *find_opt_l(const char *name_l, cli_t *cli)
 {
-    for (int i = 0; i < cli->nopts; i++)
+    int i;
+    for (i = 0; i < cli->nopts; i++)
     {
         if (strcmp(name_l, cli->opts[i].name_l) == 0)
         {
@@ -34,7 +37,8 @@ option_t *find_opt_l(const char *name_l, cli_t *cli)
 
 option_t *find_opt_s(const char name_s, cli_t *cli)
 {
-    for (int i = 0; i < cli->nopts; i++)
+    int i;
+    for (i = 0; i < cli->nopts; i++)
     {
         if (name_s == cli->opts[i].name_s)
         {
@@ -47,13 +51,14 @@ option_t *find_opt_s(const char name_s, cli_t *cli)
 
 void print_args(const cli_t *cli)
 {
+    int i;
     if (cli->nargs <= 0)
     {
         return;
     }
     printf("\n\
 arguments:");
-    for (int i = 0; i < cli->nargs; i++)
+    for (i = 0; i < cli->nargs; i++)
     {
         printf("\n\
     %s\n\
@@ -64,13 +69,14 @@ arguments:");
 
 void print_opts(const cli_t *cli)
 {
+    int i;
     if (cli->nopts <= 0)
     {
         return;
     }
     printf("\n\
 options:");
-    for (int i = 0; i < cli->nopts; i++)
+    for (i = 0; i < cli->nopts; i++)
     {
         const option_t *opt = cli->opts + i;
         printf("\n\
@@ -86,17 +92,18 @@ options:");
         %s\n\
         TYPE: %s",
                opt->desc, get_opt_type_str(opt->type));
-        if (opt->val)
+        if (opt->def)
         {
             printf("\n\
         DEFAULT: %s",
-                   opt->val);
+                   opt->def);
         }
     }
 }
 
 void print_usage(const char *bin, const cli_t *cli)
 {
+    int i;
     printf("\
 usage:\n\
     %s",
@@ -105,7 +112,7 @@ usage:\n\
     {
         printf(" [options]");
     }
-    for (int i = 0; i < cli->nargs; i++)
+    for (i = 0; i < cli->nargs; i++)
     {
         printf(" <%s>", cli->args[i].name);
     }
@@ -143,7 +150,14 @@ int cli_parse(int argc, char **argv, cli_t *cli)
 {
     int i_arg = 0;
     int nopts = 0;
-    int i = 1; /* skip binary name */
+    int i;
+    /* default options */
+    for (i = 0; i < cli->nopts; i++)
+    {
+        cli->opts[i].val = cli->opts[i].def;
+    }
+    /* parse cli values, skipping binary name */
+    i = 1; /* skip binary name */
     while (i < argc)
     {
         if (argv[i][0] == '-' && argv[i][1] != '\0')

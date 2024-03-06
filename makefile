@@ -3,8 +3,8 @@ appname := cypher
 srcdir := ./src
 bindir := ./bin
 
-CXX := gcc
-CXXFLAGS := -Wall -I$(srcdir) -O2
+CC := gcc
+CFLAGS := -Wall -I$(srcdir)
 
 srcs := $(shell find $(srcdir) -name "*.c")
 objs := $(patsubst %.c, %.o, $(srcs))
@@ -18,7 +18,7 @@ app: $(appname)
 # ================ output targets ================
 
 $(appname): $(objs)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(appname) $(objs)
+	$(CC) $(CFLAGS) $(LDFLAGS) -O2 -o $(appname) $(objs)
 	chmod +x $(appname)
 	mv $(appname) $(bindir)
 
@@ -28,7 +28,7 @@ depend: .depend
 
 .depend: $(srcs)
 	rm -f ./.depend
-	$(CXX) $(CXXFLAGS) -MM $^>>./.depend;
+	$(CC) $(CFLAGS) -MM $^>>./.depend;
 
 clean:
 	rm -f $(objs)

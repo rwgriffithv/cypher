@@ -25,7 +25,7 @@ uint32_t rotate_r(uint32_t val, size_t n)
     return (val >> n) | (n ? (val << (32 - n)) : 0);
 }
 
-sha256hash_t *sha256(bufferedio_t *bio, sha256hash_t *out)
+void sha256(bufferedio_t *bio, sha256hash_t *out)
 {
     uint32_t h[8] = {
         0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
@@ -89,22 +89,20 @@ sha256hash_t *sha256(bufferedio_t *bio, sha256hash_t *out)
     {
         out->words[7 - i] = h[i];
     }
-    return out;
 }
 
-buffer_t *sha256_hexstr(sha256hash_t *hash)
+void sha256_hexstr(sha256hash_t *hash, buffer_t *out)
 {
     const size_t n = 2 * sizeof(hash->words) + 1; /* null terminated */
-    buffer_t *buf = buf_init(n);
-    if (!buf)
+    buf_resize(out, n);
+    if (!out->data)
     {
         fprintf(stderr, "failed to make buffer for sha256 hex string: %s\n", strerror(errno));
-        return NULL;
+        return;
     }
-    char *str = buf_data(buf);
+    char *str = out->data;
     for (size_t i = 0; i < 32; ++i, str += 2)
     {
         snprintf(str, 3, "%02X", hash->bytes[31 - i]);
     }
-    return buf;
 }

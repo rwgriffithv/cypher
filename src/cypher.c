@@ -10,11 +10,12 @@
 
 void print_hash(sha256hash_t *hash, const char *prefix)
 {
-    buffer_t *hash_str = sha256_hexstr(hash);
-    if (hash_str)
+    buffer_t hash_str = {0};
+    sha256_hexstr(hash, &hash_str);
+    if (hash_str.data)
     {
-        printf("%s: 0x%s\n", prefix, buf_data(hash_str));
-        buf_free(hash_str);
+        printf("%s: 0x%s\n", prefix, (char *)hash_str.data);
+        buf_free(&hash_str);
     }
     else
     {
@@ -25,11 +26,7 @@ void print_hash(sha256hash_t *hash, const char *prefix)
 int cypher(bufferedio_t *bio_in, bufferedio_t *key, bufferedio_t *bio_out)
 {
     sha256hash_t hash;
-    if (!sha256(key, &hash))
-    {
-        fprintf(stderr, "failed to hash key\n");
-        return 1;
-    }
+    sha256(key, &hash);
     print_hash(&hash, "SHA256 key hash");
     uint32_t word;
     size_t i = 0;

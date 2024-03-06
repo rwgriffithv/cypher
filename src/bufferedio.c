@@ -10,31 +10,31 @@
 
 int _bio_wstatus(const bio_data_t *bd)
 {
-    return bd->buf ? 1 : -1;
+    return bd->buf.data ? 1 : -1;
 }
 
 size_t _bio_wread(bio_data_t *bd, void *data, size_t sz)
 {
-    const size_t rsz = buf_size(bd->buf) - bd->offset;
+    const size_t rsz = bd->buf.size - bd->offset;
     const size_t osz = rsz < sz ? rsz : sz;
-    memcpy(data, (const char *)buf_cdata(bd->buf) + bd->offset, osz);
+    memcpy(data, (const char *)bd->buf.data + bd->offset, osz);
     bd->offset += osz;
     return osz;
 }
 
 size_t _bio_wwrite(bio_data_t *bd, const void *data, size_t sz)
 {
-    return buf_push(bd->buf, data, sz);
+    return buf_push(&bd->buf, data, sz);
 }
 
 void _bio_wflush(bio_data_t *bd)
 {
-    buf_resize(bd->buf, 0);
+    buf_resize(&bd->buf, 0);
 }
 
 int _bio_wseek(bio_data_t *bd, long offset, int whence)
 {
-    const size_t sz = buf_size(bd->buf);
+    const size_t sz = bd->buf.size;
     const size_t offset_a = offset < 0 ? -offset : offset;
     int rv = 0;
     switch (whence)
@@ -88,15 +88,20 @@ int _bio_wseek(bio_data_t *bd, long offset, int whence)
 
 void _bio_wdfree(bio_data_t *bd)
 {
-    buf_free(bd->buf);
-    bd->buf = NULL;
+    buf_free(&bd->buf);
 }
 
 void bio_wrap(bufferedio_t *bio, buffer_t *buf)
 {
-    bio->data.buf = buf;
+    if (buf)
+    {
+        buf_move(&bio->data.buf, buf);
+    }
+    else
+    {
+        buf_init(&bio->data.buf, 0);
+    }
     bio->data.offset = 0;
-    bio->data.opaque = NULL;
     bio->status = &_bio_wstatus;
     bio->read = &_bio_wread;
     bio->write = &_bio_wwrite;
