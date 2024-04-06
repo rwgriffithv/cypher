@@ -1,9 +1,9 @@
 # cypher
 toy invertable file "encryption" using SHA256 hashes
 
-```  
+```
 usage:
-    ./cypher [options] <inpath> <key>
+    cypher [options] <inpath> <key>
 arguments:
     inpath
         input filepath
@@ -11,21 +11,17 @@ arguments:
         key used to encrypt file data
 options:
     --help
-    -h
+        -h
         print application usage
-        TYPE: FLAG
-    --bufsize
-    -b
-        set buffer size for file io
-        TYPE: PARAMETER
-        DEFAULT: 1028
-    --filekey
-    -f
-        read key from file (key argument is path)
-        TYPE: FLAG
-    --outpath
-    -o
+    --bufsize <bytes>
+        -b <bytes>
+        (default: 1028)
+        set buffer size for file io in bytes
+    --keyfile
+        -k
+        treat <key> argument as file to read key from
+    --outpath <path>
+        -o <path>
+        (default: out.enc)
         output filepath
-        TYPE: PARAMETER
-        DEFAULT: out.enc
 ```

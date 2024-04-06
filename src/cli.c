@@ -8,22 +8,9 @@
 #include <stdio.h>
 #include <string.h>
 
-const char *get_opt_type_str(opttype_t type)
+cli_opt_t *find_opt_l(const char *name_l, cli_t *cli)
 {
-    switch (type)
-    {
-    case FLAG:
-        return "FLAG";
-    case PARAM:
-        return "PARAMETER";
-    default:
-        return NULL;
-    }
-}
-
-option_t *find_opt_l(const char *name_l, cli_t *cli)
-{
-    int i;
+    size_t i;
     for (i = 0; i < cli->nopts; i++)
     {
         if (strcmp(name_l, cli->opts[i].name_l) == 0)
@@ -35,9 +22,9 @@ option_t *find_opt_l(const char *name_l, cli_t *cli)
     return NULL;
 }
 
-option_t *find_opt_s(const char name_s, cli_t *cli)
+cli_opt_t *find_opt_s(const char name_s, cli_t *cli)
 {
-    int i;
+    size_t i;
     for (i = 0; i < cli->nopts; i++)
     {
         if (name_s == cli->opts[i].name_s)
@@ -69,7 +56,8 @@ arguments:");
 
 void print_opts(const cli_t *cli)
 {
-    int i;
+    const cli_opt_t *opt;
+    size_t i;
     if (cli->nopts <= 0)
     {
         return;
@@ -78,32 +66,48 @@ void print_opts(const cli_t *cli)
 options:");
     for (i = 0; i < cli->nopts; i++)
     {
-        const option_t *opt = cli->opts + i;
+        opt = cli->opts + i;
         printf("\n\
     --%s",
                opt->name_l);
+        if (opt->param)
+        {
+            printf(" <%s>", opt->param);
+        }
         if (opt->name_s != '\0')
         {
             printf("\n\
-    -%c",
+        -%c",
                    opt->name_s);
+            if (opt->param)
+            {
+                printf(" <%s>", opt->param);
+            }
         }
-        printf("\n\
-        %s\n\
-        TYPE: %s",
-               opt->desc, get_opt_type_str(opt->type));
         if (opt->def)
         {
             printf("\n\
-        DEFAULT: %s",
+        (default: %s)",
                    opt->def);
         }
+        printf("\n\
+        %s",
+               opt->desc);
     }
 }
 
-void print_usage(const char *bin, const cli_t *cli)
+void print_usage(const char *argv0, const cli_t *cli)
 {
-    int i;
+    const char *bin = argv0;
+    size_t i;
+    while (*argv0 != '\0')
+    {
+        if (*argv0 == '/')
+        {
+            bin = argv0 + 1;
+        }
+        argv0++;
+    }
     printf("\
 usage:\n\
     %s",
@@ -121,40 +125,51 @@ usage:\n\
     printf("\n");
 }
 
-int opt_parse(int argc, char **argv, option_t *opt, int *pidx)
+const cli_opt_t *opt_parse(size_t argc, char *const *argv, cli_opt_t *opt, size_t *pidx)
 {
     if (!opt)
     {
-        return -1;
+        return NULL;
     }
-    switch (opt->type)
+    if (opt->param)
     {
-    case FLAG:
-        opt->val = "true";
-        break;
-    case PARAM:
         if (*pidx >= argc)
         {
             /* missing required value for option */
-            fprintf(stderr, "missing required argument for parameter-option --%s (-%c)\n", opt->name_l, opt->name_s);
-            return -1;
+            fprintf(stderr, "missing required argument <%s> for option --%s\n", opt->param, opt->name_l);
+            return NULL;
         }
         opt->val = argv[*pidx];
         *pidx = *pidx + 1;
-        break;
     }
-    return 0;
+    else
+    {
+        opt->val = "true";
+    }
+    return opt;
 }
 
-int cli_parse(int argc, char **argv, cli_t *cli)
+const cli_t *cli_parse(size_t argc, char *const *argv, cli_t *cli)
 {
-    int i_arg = 0;
-    int nopts = 0;
-    int i;
+    size_t i_arg = 0;
+    size_t nopts = 0;
+    cli_opt_t *opt;
+    size_t i, j;
+    size_t pidx;
     /* default options */
     for (i = 0; i < cli->nopts; i++)
     {
-        cli->opts[i].val = cli->opts[i].def;
+        opt = cli->opts + i;
+        if (opt->param)
+        {
+            opt->val = opt->def;
+        }
+        else
+        {
+            // flag, no defaults allowed
+            opt->def = NULL;
+            opt->val = NULL;
+        }
     }
     /* parse cli values, skipping binary name */
     i = 1; /* skip binary name */
@@ -163,28 +178,28 @@ int cli_parse(int argc, char **argv, cli_t *cli)
         if (argv[i][0] == '-' && argv[i][1] != '\0')
         {
             /* parse option */
-            option_t *opt = NULL;
-            int pidx = i + 1;
+            opt = NULL;
+            pidx = i + 1;
             if (argv[i][1] == '-')
             {
                 /* parse full option */
                 opt = find_opt_l(argv[i] + 2, cli);
-                if (opt_parse(argc, argv, opt, &pidx) < 0)
+                if (!opt_parse(argc, argv, opt, &pidx))
                 {
-                    return -1;
+                    return NULL;
                 }
                 nopts++;
             }
             else
             {
                 /* parse short option(s) */
-                int j = 1;
+                j = 1;
                 while (argv[i][j] != '\0')
                 {
                     opt = find_opt_s(argv[i][j++], cli);
-                    if (opt_parse(argc, argv, opt, &pidx) < 0)
+                    if (!opt_parse(argc, argv, opt, &pidx))
                     {
-                        return -1;
+                        return NULL;
                     }
                     nopts++;
                 }
@@ -199,15 +214,15 @@ int cli_parse(int argc, char **argv, cli_t *cli)
         else
         {
             /* invalid extra argument */
-            fprintf(stderr, "invalid extra argument \"%s\" (exactly %d arguments required)\n", argv[i], cli->nargs);
-            return -1;
+            fprintf(stderr, "invalid extra argument \"%s\" (exactly %zu arguments required)\n", argv[i], cli->nargs);
+            return NULL;
         }
     }
     if (i_arg < cli->nargs)
     {
         /* missing required arguments */
-        fprintf(stderr, "only parsed %d of required %d arguments\n", i_arg, cli->nargs);
-        return -1;
+        fprintf(stderr, "only parsed %zu of required %zu arguments\n", i_arg, cli->nargs);
+        return NULL;
     }
-    return nopts;
+    return cli;
 }

@@ -13,34 +13,32 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define NOPTS 4
-#define NARGS 2
-
 #define OUTFILE_FLAG (O_WRONLY | O_CREAT | O_TRUNC)
 #define OUTFILE_MODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
 int main(int argc, char **argv)
 {
     /* core objects */
+    buffer_t tempbuf = {0};
     int rv = 0;
     bufferedio_t infile = {0};
     bufferedio_t outfile = {0};
     bufferedio_t key = {0};
     /* cli parsing */
-    option_t opts[NOPTS] = {
-        {'h', "help", "print application usage", FLAG, NULL, NULL},
-        {'b', "bufsize", "set buffer size for file io", PARAM, "1028", NULL},
-        {'f', "filekey", "read key from file (key argument is path)", FLAG, NULL, NULL},
-        {'o', "outpath", "output filepath", PARAM, "out.enc", NULL}};
-    argument_t args[NARGS] = {
+    cli_opt_t opts[] = {
+        {'h', "help", "print application usage", NULL, NULL, NULL},
+        {'b', "bufsize", "set buffer size for file io in bytes", "bytes", "1028", NULL},
+        {'k', "keyfile", "treat <key> argument as file to read key from", NULL, NULL, NULL},
+        {'o', "outpath", "output filepath", "path", "out.enc", NULL}};
+    cli_arg_t args[] = {
         {"inpath", "input filepath", NULL},
         {"key", "key used to encrypt file data", NULL}};
     cli_t cli = {
-        NOPTS,
+        sizeof(opts) / sizeof(cli_opt_t),
         opts,
-        NARGS,
+        sizeof(args) / sizeof(cli_arg_t),
         args};
-    if (cli_parse(argc, argv, &cli) < 0)
+    if (!cli_parse(argc, argv, &cli))
     {
         print_usage(argv[0], &cli);
         goto error;
@@ -55,14 +53,13 @@ int main(int argc, char **argv)
     {
         /* unlimited buffer, all in memory */
         printf("buffer size %d <= 0, will use unlimited size\n", bufsz);
-        buffer_t filebuf = {0};
-        fio_read_all(&filebuf, cli.args[0].val);
-        bio_wrap(&infile, &filebuf);
+        fio_read_all(&tempbuf, cli.args[0].val);
+        bio_wrap(&infile, &tempbuf);
         bio_wrap(&outfile, NULL);
         if (cli.opts[2].val)
         {
-            fio_read_all(&filebuf, cli.args[1].val);
-            bio_wrap(&key, &filebuf);
+            fio_read_all(&tempbuf, cli.args[1].val);
+            bio_wrap(&key, &tempbuf);
         }
     }
     else
@@ -77,14 +74,23 @@ int main(int argc, char **argv)
     }
     if (!cli.opts[2].val)
     {
-        buffer_t keybuf = {0};
-        buf_copy(&keybuf, cli.args[1].val, strlen(cli.args[1].val));
-        bio_wrap(&key, &keybuf);
+        buf_copy(&tempbuf, cli.args[1].val, strlen(cli.args[1].val));
+        bio_wrap(&key, &tempbuf);
     }
     /* check initialization */
-    if (!(bio_status(&infile) > BIO_STATUS_INIT && bio_status(&outfile) > BIO_STATUS_INIT && bio_status(&key) > BIO_STATUS_INIT))
+    if (bio_status(&infile) <= BIO_STATUS_INIT)
     {
-        fprintf(stderr, "initialization failed\n");
+        fprintf(stderr, "failed to initialize input file stream\n");
+        goto error;
+    }
+    if (bio_status(&outfile) <= BIO_STATUS_INIT)
+    {
+        fprintf(stderr, "failed to initialize output file stream\n");
+        goto error;
+    }
+    if (bio_status(&key) <= BIO_STATUS_INIT)
+    {
+        fprintf(stderr, "failed to initialize key input stream\n");
         goto error;
     }
     /* work */

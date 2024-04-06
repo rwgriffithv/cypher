@@ -8,39 +8,33 @@
 
 #include <string.h>
 
-typedef enum
-{
-    FLAG,
-    PARAM
-} opttype_t;
-
-typedef struct option
+typedef struct cli_opt
 {
     const char name_s;
     const char *name_l;
     const char *desc;
-    const opttype_t type;
+    const char *param;
     const char *def;
     const char *val;
-} option_t;
+} cli_opt_t;
 
-typedef struct argument
+typedef struct cli_arg
 {
     const char *name;
     const char *desc;
     const char *val;
-} argument_t;
+} cli_arg_t;
 
 typedef struct cli
 {
-    const int nopts;
-    option_t *opts;
-    const int nargs;
-    argument_t *args;
+    size_t nopts;
+    cli_opt_t *opts;
+    size_t nargs;
+    cli_arg_t *args;
 } cli_t;
 
-void print_usage(const char *bin, const cli_t *cli);
+void print_usage(const char *argv0, const cli_t *cli);
 
-int cli_parse(int argc, char **argv, cli_t *cli);
+const cli_t *cli_parse(size_t argc, char *const *argv, cli_t *cli);
 
 #endif

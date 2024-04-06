@@ -22,6 +22,7 @@ void buf_copy(buffer_t *buf, const void *src, size_t sz)
     if (buf->data)
     {
         memcpy(buf->data, src, sz);
+        buf->size = sz;
     }
 }
 
@@ -31,9 +32,7 @@ void buf_move(buffer_t *buf, buffer_t *src)
     buf->capacity = src->capacity;
     buf->size = src->size;
     /* clear source */
-    src->data = NULL;
-    src->capacity = 0;
-    src->size = 0;
+    memset(src, 0, sizeof(*src));
 }
 
 void buf_free(buffer_t *buf)
@@ -41,10 +40,8 @@ void buf_free(buffer_t *buf)
     if (buf)
     {
         free(buf->data);
-        buf->data = NULL;
-        buf->capacity = 0;
-        buf->size = 0;
     }
+    memset(buf, 0, sizeof(*buf));
 }
 
 void buf_clear(buffer_t *buf)
