@@ -6,7 +6,7 @@
 #ifndef CLI_H
 #define CLI_H
 
-#include <string.h>
+#include <stddef.h>
 
 typedef struct cli_opt
 {

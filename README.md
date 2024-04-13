@@ -13,6 +13,9 @@ options:
     --help
         -h
         print application usage
+    --verbose
+        -v
+        more verbose logging
     --bufsize <bytes>
         -b <bytes>
         (default: 1028)

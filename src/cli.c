@@ -151,15 +151,11 @@ const cli_opt_t *opt_parse(size_t argc, char *const *argv, cli_opt_t *opt, size_
 
 const cli_t *cli_parse(size_t argc, char *const *argv, cli_t *cli)
 {
-    size_t i_arg = 0;
-    size_t nopts = 0;
-    cli_opt_t *opt;
-    size_t i, j;
-    size_t pidx;
+    size_t i;
     /* default options */
     for (i = 0; i < cli->nopts; i++)
     {
-        opt = cli->opts + i;
+        cli_opt_t *opt = cli->opts + i;
         if (opt->param)
         {
             opt->val = opt->def;
@@ -172,14 +168,15 @@ const cli_t *cli_parse(size_t argc, char *const *argv, cli_t *cli)
         }
     }
     /* parse cli values, skipping binary name */
-    i = 1; /* skip binary name */
+    size_t i_arg = 0;
+    i = 1;
     while (i < argc)
     {
         if (argv[i][0] == '-' && argv[i][1] != '\0')
         {
             /* parse option */
-            opt = NULL;
-            pidx = i + 1;
+            cli_opt_t *opt = NULL;
+            size_t pidx = i + 1;
             if (argv[i][1] == '-')
             {
                 /* parse full option */
@@ -188,12 +185,11 @@ const cli_t *cli_parse(size_t argc, char *const *argv, cli_t *cli)
                 {
                     return NULL;
                 }
-                nopts++;
             }
             else
             {
                 /* parse short option(s) */
-                j = 1;
+                size_t j = 1;
                 while (argv[i][j] != '\0')
                 {
                     opt = find_opt_s(argv[i][j++], cli);
@@ -201,7 +197,6 @@ const cli_t *cli_parse(size_t argc, char *const *argv, cli_t *cli)
                     {
                         return NULL;
                     }
-                    nopts++;
                 }
             }
             i = pidx;

@@ -11,7 +11,7 @@
 /**
  * bufferedio status integer generality
  * status > 0 : states signifying usability
- * status < 0 : error states (including pre-init)
+ * status < 0 : error states
  */
 #define BIO_STATUS_INIT 0
 
@@ -26,6 +26,7 @@ typedef struct bufferedio
 {
     bio_data_t data;
     int (*status)(const bio_data_t *);
+    void (*strstatus)(const bio_data_t *, char *, size_t);
     size_t (*read)(bio_data_t *, void *, size_t);
     size_t (*write)(bio_data_t *, const void *, size_t);
     void (*flush)(bio_data_t *);
@@ -36,6 +37,8 @@ typedef struct bufferedio
 void bio_wrap(bufferedio_t *bio, buffer_t *buf);
 
 int bio_status(const bufferedio_t *bio);
+
+char *bio_strstatus(bufferedio_t *bio, char *str, size_t n);
 
 size_t bio_read(bufferedio_t *bio, void *data, size_t sz);
 

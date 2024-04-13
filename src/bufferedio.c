@@ -10,7 +10,13 @@
 
 int _bio_wstatus(const bio_data_t *bd)
 {
-    return bd->buf.data ? 1 : -1;
+    /* always usable */
+    return BIO_STATUS_INIT + 1;
+}
+
+void _bio_wstrstatus(const bio_data_t *bd, char *str, size_t n)
+{
+    buf_strstatus(&bd->buf, str, n);
 }
 
 size_t _bio_wread(bio_data_t *bd, void *data, size_t sz)
@@ -29,7 +35,7 @@ size_t _bio_wwrite(bio_data_t *bd, const void *data, size_t sz)
 
 void _bio_wflush(bio_data_t *bd)
 {
-    buf_resize(&bd->buf, 0);
+    buf_clear(&bd->buf);
 }
 
 int _bio_wseek(bio_data_t *bd, long offset, int whence)
@@ -103,6 +109,7 @@ void bio_wrap(bufferedio_t *bio, buffer_t *buf)
     }
     bio->data.offset = 0;
     bio->status = &_bio_wstatus;
+    bio->strstatus = &_bio_wstrstatus;
     bio->read = &_bio_wread;
     bio->write = &_bio_wwrite;
     bio->flush = &_bio_wflush;
@@ -113,6 +120,19 @@ void bio_wrap(bufferedio_t *bio, buffer_t *buf)
 int bio_status(const bufferedio_t *bio)
 {
     return bio->status(&bio->data);
+}
+
+char *bio_strstatus(bufferedio_t *bio, char *str, size_t n)
+{
+    if (bio->strstatus)
+    {
+        bio->strstatus(&bio->data, str, n);
+    }
+    else
+    {
+        strncpy(str, "(bio strstatus unsupported)", n);
+    }
+    return str;
 }
 
 size_t bio_read(bufferedio_t *bio, void *data, size_t sz)

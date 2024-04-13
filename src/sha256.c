@@ -5,7 +5,6 @@
 
 #include "sha256.h"
 
-#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -91,18 +90,12 @@ void sha256(bufferedio_t *bio, sha256hash_t *out)
     }
 }
 
-void sha256_hexstr(sha256hash_t *hash, buffer_t *out)
+void sha256_hexstr(sha256hash_t *hash, sha256hex_t *out)
 {
-    const size_t n = 2 * sizeof(hash->words) + 1; /* null terminated */
-    buf_resize(out, n);
-    if (!out->data)
-    {
-        fprintf(stderr, "failed to make buffer for sha256 hex string: %s\n", strerror(errno));
-        return;
-    }
-    char *str = out->data;
+    char *str = out->str;
     for (size_t i = 0; i < 32; ++i, str += 2)
     {
         snprintf(str, 3, "%02X", hash->bytes[31 - i]);
     }
+    *str = '\0';
 }

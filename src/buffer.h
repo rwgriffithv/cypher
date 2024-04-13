@@ -25,12 +25,12 @@ void buf_free(buffer_t *buf);
 
 void buf_clear(buffer_t *buf);
 
-size_t buf_resize(buffer_t *buf, size_t sz);
+size_t buf_aligned_capacity(buffer_t *buf);
 
-size_t buf_resize_strict(buffer_t *buf, size_t sz);
+size_t buf_resize(buffer_t *buf, size_t sz);
 
 size_t buf_push(buffer_t *buf, const void *src, size_t sz);
 
-size_t buf_push_strict(buffer_t *buf, const void *src, size_t sz);
+int buf_strstatus(const buffer_t *buf, char *str, size_t n);
 
 #endif

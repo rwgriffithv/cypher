@@ -19,7 +19,6 @@
 int main(int argc, char **argv)
 {
     /* core objects */
-    buffer_t tempbuf = {0};
     int rv = 0;
     bufferedio_t infile = {0};
     bufferedio_t outfile = {0};
@@ -27,6 +26,7 @@ int main(int argc, char **argv)
     /* cli parsing */
     cli_opt_t opts[] = {
         {'h', "help", "print application usage", NULL, NULL, NULL},
+        {'v', "verbose", "more verbose logging", NULL, NULL, NULL},
         {'b', "bufsize", "set buffer size for file io in bytes", "bytes", "1028", NULL},
         {'k', "keyfile", "treat <key> argument as file to read key from", NULL, NULL, NULL},
         {'o', "outpath", "output filepath", "path", "out.enc", NULL}};
@@ -47,56 +47,73 @@ int main(int argc, char **argv)
     {
         print_usage(argv[0], &cli);
     }
-    const int bufsz = atoi(cli.opts[1].val);
+    const int bufsz = atoi(cli.opts[2].val);
     /* initialization */
+    int read_all_rv_in = 0;
+    int read_all_rv_key = 0;
     if (bufsz <= 0)
     {
         /* unlimited buffer, all in memory */
-        printf("buffer size %d <= 0, will use unlimited size\n", bufsz);
-        fio_read_all(&tempbuf, cli.args[0].val);
-        bio_wrap(&infile, &tempbuf);
-        bio_wrap(&outfile, NULL);
-        if (cli.opts[2].val)
+        if (cli.opts[1].val)
         {
-            fio_read_all(&tempbuf, cli.args[1].val);
-            bio_wrap(&key, &tempbuf);
+            printf("buffer size %d <= 0, will use unlimited size\n", bufsz);
+        }
+        bio_wrap(&infile, NULL);
+        read_all_rv_in = fio_read_all(&infile.data.buf, cli.args[0].val);
+        bio_wrap(&outfile, NULL);
+        if (cli.opts[3].val)
+        {
+            bio_wrap(&key, NULL);
+            read_all_rv_key = fio_read_all(&key.data.buf, cli.args[1].val);
         }
     }
     else
     {
         /* restricted buffered io */
         fdio_wrap(&infile, open(cli.args[0].val, O_RDONLY), bufsz);
-        fdio_wrap(&outfile, open(cli.opts[3].val, OUTFILE_FLAG, OUTFILE_MODE), bufsz);
-        if (cli.opts[2].val)
+        fdio_wrap(&outfile, open(cli.opts[4].val, OUTFILE_FLAG, OUTFILE_MODE), bufsz);
+        if (cli.opts[3].val)
         {
             fdio_wrap(&key, open(cli.args[1].val, O_RDONLY), bufsz);
         }
     }
-    if (!cli.opts[2].val)
+    if (!cli.opts[3].val)
     {
-        buf_copy(&tempbuf, cli.args[1].val, strlen(cli.args[1].val));
-        bio_wrap(&key, &tempbuf);
+        bio_wrap(&key, NULL);
+        buf_copy(&key.data.buf, cli.args[1].val, strlen(cli.args[1].val));
     }
     /* check initialization */
-    if (bio_status(&infile) <= BIO_STATUS_INIT)
+    int init_err = 0;
+    char sstr[128];
+    if (bio_status(&infile) <= BIO_STATUS_INIT || read_all_rv_in < 0)
     {
-        fprintf(stderr, "failed to initialize input file stream\n");
-        goto error;
+        fprintf(stderr, "failed to initialize input file stream: [status %d] %s\n", bio_status(&infile), bio_strstatus(&infile, sstr, sizeof(sstr)));
+        init_err = 1;
     }
     if (bio_status(&outfile) <= BIO_STATUS_INIT)
     {
-        fprintf(stderr, "failed to initialize output file stream\n");
+        fprintf(stderr, "failed to initialize output file stream: [status %d] %s\n", bio_status(&outfile), bio_strstatus(&outfile, sstr, sizeof(sstr)));
+        init_err = 1;
+    }
+    if (bio_status(&key) <= BIO_STATUS_INIT || read_all_rv_key < 0)
+    {
+        fprintf(stderr, "failed to initialize key input stream: [status %d] %s\n", bio_status(&key), bio_strstatus(&key, sstr, sizeof(sstr)));
+        init_err = 1;
+    }
+    if (init_err)
+    {
         goto error;
     }
-    if (bio_status(&key) <= BIO_STATUS_INIT)
+    if (cli.opts[1].val)
     {
-        fprintf(stderr, "failed to initialize key input stream\n");
-        goto error;
+        printf("input file stream: %s\n", bio_strstatus(&infile, sstr, sizeof(sstr)));
+        printf("output file stream: %s\n", bio_strstatus(&outfile, sstr, sizeof(sstr)));
+        printf("key file stream: %s\n", bio_strstatus(&key, sstr, sizeof(sstr)));
+        printf("working...\n");
     }
     /* work */
-    printf("working...\n");
     rv = cypher(&infile, &key, &outfile);
-    if (bufsz <= 0 && fio_write_all(cli.opts[3].val, &outfile.data.buf) != outfile.data.buf.size)
+    if (bufsz <= 0 && fio_write_all(cli.opts[4].val, &outfile.data.buf) != outfile.data.buf.size)
     {
         goto error;
     }
