@@ -14,21 +14,22 @@ size_t _align_cap(size_t cap)
     return cap - (cap % sizeof(size_t)) + sizeof(size_t);
 }
 
-void buf_init(buffer_t *buf, size_t cap)
+size_t buf_init(buffer_t *buf, size_t cap)
 {
     buf->data = realloc(buf->data, cap);
     buf->capacity = buf->data ? cap : 0;
     buf->size = 0;
+    return buf->capacity;
 }
 
-void buf_copy(buffer_t *buf, const void *src, size_t sz)
+size_t buf_copy(buffer_t *buf, const void *src, size_t sz)
 {
-    buf_init(buf, _align_cap(sz));
-    if (buf->data)
+    if (buf_init(buf, _align_cap(sz)))
     {
         memcpy(buf->data, src, sz);
         buf->size = sz;
     }
+    return buf->size;
 }
 
 void buf_move(buffer_t *buf, buffer_t *src)
@@ -45,8 +46,8 @@ void buf_free(buffer_t *buf)
     if (buf)
     {
         free(buf->data);
+        memset(buf, 0, sizeof(*buf));
     }
-    memset(buf, 0, sizeof(*buf));
 }
 
 void buf_clear(buffer_t *buf)
@@ -56,14 +57,9 @@ void buf_clear(buffer_t *buf)
 
 size_t buf_resize(buffer_t *buf, size_t sz)
 {
-    if (sz <= buf->capacity)
+    if (sz <= buf->capacity || buf_init(buf, _align_cap(sz)))
     {
         buf->size = sz;
-    }
-    else
-    {
-        buf_init(buf, _align_cap(sz));
-        buf->size = buf->data ? sz : 0;
     }
     return buf->size;
 }
@@ -79,8 +75,11 @@ size_t buf_push(buffer_t *buf, const void *src, size_t sz)
         outsz = outsz < insz ? maxcap : outsz;
         size_t dcap = buf->capacity * 2;
         dcap = dcap < buf->capacity ? maxcap : dcap;
-        buf_init(buf, _align_cap(dcap < outsz ? outsz : dcap));
-        sz = buf->data ? outsz - insz : 0;
+        if (!buf_init(buf, _align_cap(dcap < outsz ? outsz : dcap)))
+        {
+            return 0;
+        }
+        sz = outsz - insz;
     }
     buf->size = insz + sz;
     if (src)

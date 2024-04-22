@@ -34,18 +34,19 @@ int main(int argc, char **argv)
         {"inpath", "input filepath", NULL},
         {"key", "key used to encrypt file data", NULL}};
     cli_t cli = {
+        NULL,
         sizeof(opts) / sizeof(cli_opt_t),
         opts,
         sizeof(args) / sizeof(cli_arg_t),
         args};
     if (!cli_parse(argc, argv, &cli))
     {
-        print_usage(argv[0], &cli);
+        cli_print_usage(&cli);
         goto error;
     }
     if (cli.opts[0].val)
     {
-        print_usage(argv[0], &cli);
+        cli_print_usage(&cli);
     }
     const int bufsz = atoi(cli.opts[2].val);
     /* initialization */
@@ -111,8 +112,17 @@ int main(int argc, char **argv)
         printf("key file stream: %s\n", bio_strstatus(&key, sstr, sizeof(sstr)));
         printf("working...\n");
     }
-    /* work */
-    rv = cypher(&infile, &key, &outfile);
+    /* main work */
+    sha256hash_t key_hash;
+    sha256(&key, &key_hash);
+    const size_t csz = cypher_xor(&infile, &key_hash, &outfile);
+    if (cli.opts[1].val)
+    {
+        sha256hex_t hash_str;
+        sha256_hexstr(&key_hash, &hash_str);
+        printf("SHA256 key hash: 0x%s\n", hash_str.str);
+        printf("encoded %zu bytes\n", csz);
+    }
     if (bufsz <= 0 && fio_write_all(cli.opts[4].val, &outfile.data.buf) != outfile.data.buf.size)
     {
         goto error;

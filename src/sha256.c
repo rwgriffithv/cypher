@@ -90,7 +90,7 @@ void sha256(bufferedio_t *bio, sha256hash_t *out)
     }
 }
 
-void sha256_hexstr(sha256hash_t *hash, sha256hex_t *out)
+const char *sha256_hexstr(sha256hash_t *hash, sha256hex_t *out)
 {
     char *str = out->str;
     for (size_t i = 0; i < 32; ++i, str += 2)
@@ -98,4 +98,5 @@ void sha256_hexstr(sha256hash_t *hash, sha256hex_t *out)
         snprintf(str, 3, "%02X", hash->bytes[31 - i]);
     }
     *str = '\0';
+    return out->str;
 }

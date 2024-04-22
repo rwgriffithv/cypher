@@ -4,28 +4,25 @@
  */
 
 #include "cypher.h"
-#include "sha256.h"
 
 #include <stdio.h>
 
-int cypher(bufferedio_t *bio_in, bufferedio_t *key, bufferedio_t *bio_out)
+size_t cypher_xor(bufferedio_t *bio_in, sha256hash_t *hash, bufferedio_t *bio_out)
 {
-    sha256hash_t hash;
-    sha256hex_t hash_str;
-    sha256(key, &hash);
-    sha256_hexstr(&hash, &hash_str);
-    printf("SHA256 key hash: 0x%s\n", hash_str.str);
-    uint32_t word;
+    size_t rv = 0;
     size_t i = 0;
     while (1)
     {
+        uint32_t word;
         const size_t rsz = bio_read(bio_in, &word, sizeof(word));
-        word ^= hash.words[i];
         i = (i + 1) % 8;
-        if (!rsz || bio_write(bio_out, &word, rsz) != rsz)
+        word ^= hash->words[i];
+        const size_t wsz = rsz ? bio_write(bio_out, &word, rsz) : 0;
+        rv += wsz;
+        if (!(wsz && wsz == rsz))
         {
             break;
         }
     }
-    return 0;
+    return rv;
 }

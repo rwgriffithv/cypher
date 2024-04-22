@@ -4,6 +4,7 @@
  */
 
 #include "cli.h"
+#include "tokenize.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -96,29 +97,20 @@ options:");
     }
 }
 
-void print_usage(const char *argv0, const cli_t *cli)
+void cli_print_usage(const cli_t *cli)
 {
-    const char *bin = argv0;
-    size_t i;
-    while (*argv0 != '\0')
-    {
-        if (*argv0 == '/')
-        {
-            bin = argv0 + 1;
-        }
-        argv0++;
-    }
     printf("\
 usage:\n\
     %s",
-           bin);
-    if (cli->nopts > 0)
-    {
-        printf(" [options]");
-    }
+           cli->cmd);
+    int i;
     for (i = 0; i < cli->nargs; i++)
     {
         printf(" <%s>", cli->args[i].name);
+    }
+    if (cli->nopts > 0)
+    {
+        printf(" [options]");
     }
     print_args(cli);
     print_opts(cli);
@@ -165,6 +157,20 @@ const cli_t *cli_parse(size_t argc, char *const *argv, cli_t *cli)
             // flag, no defaults allowed
             opt->def = NULL;
             opt->val = NULL;
+        }
+    }
+    /* parse binary as command name */
+    if (argc)
+    {
+        const char *argv0 = argv[0];
+        cli->cmd = argv0;
+        while (*argv0 != '\0')
+        {
+            if (*argv0 == '/')
+            {
+                cli->cmd = argv0 + 1;
+            }
+            argv0++;
         }
     }
     /* parse cli values, skipping binary name */
@@ -220,4 +226,47 @@ const cli_t *cli_parse(size_t argc, char *const *argv, cli_t *cli)
         return NULL;
     }
     return cli;
+}
+
+int cli_parse_line(bufferedio_t *bio, buffer_t *buf, cli_t *cli)
+{
+    /* TODO: IMPROVE EOF VS ERROR DISAMBIGUATION */
+    char end = 0;
+    if (!cli->cmd)
+    {
+        /* cmd token not parsed already, parse from line */
+        cli->cmd = tkz_parse_str_token(bio, buf, &end);
+    }
+    buffer_t argvbuf = {0}; /* store first as relative offsets to buf->data */
+    size_t offset;
+    if (cli->cmd)
+    {
+        /* cli->cmd always expected to be parsed into same buffer buf */
+        offset = cli->cmd - (const char *)buf->data;
+        buf_push(&argvbuf, &offset, sizeof(offset));
+    }
+    while (!(end == '\n' || end == EOF))
+    {
+        const char *tok = tkz_parse_str_token(bio, buf, &end);
+        if (!tok || *tok == '\0')
+        {
+            break;
+        }
+        offset = tok - (const char *)buf->data;
+        buf_push(&argvbuf, &offset, sizeof(offset));
+    }
+    size_t argc = argvbuf.size / sizeof(char *);
+    char **argv = argvbuf.data;
+    size_t i = 0;
+    for (i = 0; i < argc; i++)
+    {
+        argv[i] += (size_t)buf->data;
+    }
+    int rv = -1;
+    if (argc)
+    {
+        rv = cli_parse(argc, argv, cli) ? 1 : (end == EOF ? 0 : -1);
+    }
+    buf_free(&argvbuf);
+    return rv;
 }

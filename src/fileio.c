@@ -13,7 +13,6 @@ int fio_read_all(buffer_t *buf, const char *path)
 {
     int rv = 0;
     size_t rsz = 0;
-    buf_init(buf, 0);
     FILE *f = fopen(path, "r");
     if (!f)
     {
@@ -62,7 +61,7 @@ end:
     return rv;
 }
 
-size_t fio_write_all(const char *path, buffer_t *buf)
+size_t fio_write_all(const char *path, const buffer_t *buf)
 {
     size_t wsz = 0;
     FILE *f = fopen(path, "w");
@@ -77,7 +76,7 @@ size_t fio_write_all(const char *path, buffer_t *buf)
         fprintf(stderr, "only wrote %zu of %zu bytes to file at %s\n", wsz, buf->size, path);
     }
 end:
-    if (fclose(f) != 0)
+    if (f && fclose(f) != 0)
     {
         fprintf(stderr, "failed to close file at %s: %s\n", path, strerror(errno));
     }

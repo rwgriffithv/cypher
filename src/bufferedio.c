@@ -171,8 +171,16 @@ int bio_seek(bufferedio_t *bio, long offset, int whence)
 
 void bio_dfree(bufferedio_t *bio)
 {
-    if (bio && bio->dfree)
+    if (bio)
     {
-        bio->dfree(&bio->data);
+        if (bio->dfree)
+        {
+            bio->dfree(&bio->data);
+        }
+        else
+        {
+            buf_free(&bio->data.buf);
+            buf_free(&bio->data.opaque);
+        }
     }
 }
