@@ -3,28 +3,31 @@ toy invertable file "encryption" using SHA256 hashes
 
 ```
 usage:
-    cypher [options] <inpath> <key>
+    cypher <key> [options]
 arguments:
-    inpath
-        input filepath
     key
-        key used to encrypt file data
+        key used to pseudo-encrypt input bytes
 options:
     --help
         -h
-        print application usage
-    --verbose
-        -v
-        more verbose logging
+        print application usage (to stderr)
+    --sha256
+        -s
+        output SHA256 hash of key (ignore input)
     --bufsize <bytes>
         -b <bytes>
-        (default: 1028)
+        (default: 2056)
         set buffer size for file io in bytes
     --keyfile
         -k
-        treat <key> argument as file to read key from
-    --outpath <path>
+        use bytes of file at <key> argument as key
+    --logfile <path>
+        -l <path>
+        log verbose info to filepath
+    --infile <path>
+        -i <path>
+        read input from filepath (instead of stdin)
+    --outfile <path>
         -o <path>
-        (default: out.enc)
-        output filepath
+        write output to filepath (instead of stdout)
 ```

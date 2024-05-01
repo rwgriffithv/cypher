@@ -93,8 +93,3 @@ size_t buf_push(buffer_t *buf, const void *src, size_t sz)
     }
     return sz;
 }
-
-int buf_strstatus(const buffer_t *buf, char *str, size_t n)
-{
-    return snprintf(str, n, "buffer %sallocated {data: %zu, size: %zu, capacity: %zu}", buf->data ? "" : "not ", (size_t)buf->data, buf->size, buf->capacity);
-}

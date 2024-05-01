@@ -11,21 +11,39 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*
-TODO: new copy of main function to test stdin/stdout default behavior
-    (flexing usage of fdio)
-    handle input from stdin and put output to stdout
-    key still specified as required arg, using -k flag for file
-    bufsize remains the same
-    stdin will be default input without -i flag
-    stdout will be default output without -o flag
-    log file option -l flag will replace -v option
-*/
-/*
-TODO: new application for p2p sending and receiving cyphered messages and logging them to file
-    server implementation to handle multiple connections
-    stdin cli options to switch between connections
-*/
+/**
+ * @todo client-server applications for networked messaging
+ * (better encrytpion will be built on top of this, initially making-do with XOR)
+ * (should be careful w/ bufferedio, make sure to flush writes and only read when and what is needed)
+ * should build local server application that always listens on specified port and stores messages and connection configs
+ * will have support for multiple named connections associated with peer IPs and ports
+ * server will have connection config file for persistence between client sessions
+ * messaging client will "subscribe" to updates from server
+ *  e.g. updates to connection statuses, new messages, delivery & read-receipts, etc
+ * messaging client will have multiple stdin cli structs for commands
+ *  0. help
+ *      print usage of all commands (all cli structs)
+ *  1. exit
+ *      exits application
+ *  2. status
+ *      show status of connection to peer server (and list addr)
+ *      for each connection
+ *      show connection up/down status next to name (ping peer server for response, show last connection timestamp)
+ *      if non-zero show number of own unsent messages waiting for peer server to be responsive
+ *      if non-zero show number of sent but unread messages (no read-receipt from peer client & server)
+ *      if non-zero show number of unread messages for user to read
+ *  3. conn <name> [-c <addr>] [-d]
+ *      -c create named connection for peer (server stores into config)
+ *      -d delete named connection
+ *      switch to connection (if -d not specified, and if connection exists)
+ *      show specific connection status upon switching
+ *  4. read [-n <#>] [-t <timestamp>]
+ *      -n print last # messages
+ *      -t print messages at and after timestamp
+ *      prints all unread messages to stdout (options specify other behavior)
+ *  5. send <message>
+ *      send message to server to forward to connection
+ */
 
 int main(int argc, char **argv)
 {
@@ -33,21 +51,21 @@ int main(int argc, char **argv)
     int rv = 0;
     bufferedio_t infile = {0};
     /* cli parsing */
+    cli_arg_t args[] = {
+        {"inpath", "input filepath", NULL},
+        {"key", "key used to encrypt file data", NULL}};
     cli_opt_t opts[] = {
         {'h', "help", "print application usage", NULL, NULL, NULL},
         {'v', "verbose", "more verbose logging", NULL, NULL, NULL},
         {'b', "bufsize", "set buffer size for file io in bytes", "bytes", "1028", NULL},
         {'k', "keyfile", "treat <key> argument as file to read key from", NULL, NULL, NULL},
         {'o', "outpath", "output filepath", "path", "out.enc", NULL}};
-    cli_arg_t args[] = {
-        {"inpath", "input filepath", NULL},
-        {"key", "key used to encrypt file data", NULL}};
     cli_t cli = {
         NULL,
-        sizeof(opts) / sizeof(cli_opt_t),
-        opts,
         sizeof(args) / sizeof(cli_arg_t),
-        args};
+        args,
+        sizeof(opts) / sizeof(cli_opt_t),
+        opts};
 
     /** test parsing lines in file passes as first argument */
     fdio_wrap(&infile, open(argv[1], O_RDONLY), 32);

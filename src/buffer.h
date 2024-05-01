@@ -84,14 +84,4 @@ size_t buf_resize(buffer_t *buf, size_t sz);
  */
 size_t buf_push(buffer_t *buf, const void *src, size_t sz);
 
-/**
- * @brief get status of buffer as a human-readable character string
- *
- * @param buf the buffer to get the status of
- * @param[out] str the character array in which the string is written to
- * @param n the number of bytes available in the output character array
- * @return the return value of snprintf
- */
-int buf_strstatus(const buffer_t *buf, char *str, size_t n);
-
 #endif

@@ -8,17 +8,17 @@
 #include <stdio.h>
 #include <string.h>
 
-uint32_t bswap_32(uint32_t in)
+uint32_t _bswap_32(uint32_t in)
 {
     return (in << 24) | ((in & 0xFF00) << 8) | ((in >> 8) & 0xFF00) | (in >> 24);
 }
 
-uint64_t bswap_64(uint64_t in)
+uint64_t _bswap_64(uint64_t in)
 {
     return (in << 56) | ((in & 0xFF00) << 40) | ((in & 0xFF0000) << 24) | ((in & 0xFF000000) << 8) | ((in >> 8) & 0xFF000000) | ((in >> 24) & 0xFF0000) | ((in >> 40) & 0xFF00) | (in >> 56);
 }
 
-uint32_t rotate_r(uint32_t val, size_t n)
+uint32_t _rotate_r(uint32_t val, size_t n)
 {
     n = n % 32;
     return (val >> n) | (n ? (val << (32 - n)) : 0);
@@ -49,7 +49,7 @@ void sha256(bufferedio_t *bio, sha256hash_t *out)
         {
             uint8_t *end = (uint8_t *)chunk + rsz;
             end[0] = 0x80;                                                                 /* 1 bit that starts padding */
-            const uint64_t len = bswap_64((uint64_t)(insz * 8));                           /* big-endian bitlength of original data */
+            const uint64_t len = _bswap_64((uint64_t)(insz * 8));                          /* big-endian bitlength of original data */
             const size_t npz = sizeof(chunk) - ((insz + 1 + sizeof(len)) % sizeof(chunk)); /* number of padded zero bytes */
             memset(end + 1, 0, npz);
             memcpy(end + 1 + npz, &len, sizeof(len));
@@ -57,21 +57,21 @@ void sha256(bufferedio_t *bio, sha256hash_t *out)
         }
         for (size_t i = 0; i < 16; ++i)
         {
-            w[i] = bswap_32(chunk[i]);
+            w[i] = _bswap_32(chunk[i]);
         }
         for (size_t i = 16; i < 64; ++i)
         {
-            const uint32_t s0 = rotate_r(w[i - 15], 7) ^ rotate_r(w[i - 15], 18) ^ (w[i - 15] >> 3);
-            const uint32_t s1 = rotate_r(w[i - 2], 17) ^ rotate_r(w[i - 2], 19) ^ (w[i - 2] >> 10);
+            const uint32_t s0 = _rotate_r(w[i - 15], 7) ^ _rotate_r(w[i - 15], 18) ^ (w[i - 15] >> 3);
+            const uint32_t s1 = _rotate_r(w[i - 2], 17) ^ _rotate_r(w[i - 2], 19) ^ (w[i - 2] >> 10);
             w[i] = w[i - 16] + s0 + w[i - 7] + s1;
         }
         memcpy(a, h, sizeof(h));
         for (size_t i = 0; i < 64; ++i)
         {
-            const uint32_t s1 = rotate_r(a[4], 6) ^ rotate_r(a[4], 11) ^ rotate_r(a[4], 25);
+            const uint32_t s1 = _rotate_r(a[4], 6) ^ _rotate_r(a[4], 11) ^ _rotate_r(a[4], 25);
             const uint32_t ch = (a[4] & a[5]) ^ ((~a[4]) & a[6]);
             const uint32_t t1 = a[7] + s1 + ch + k[i] + w[i];
-            const uint32_t s0 = rotate_r(a[0], 2) ^ rotate_r(a[0], 13) ^ rotate_r(a[0], 22);
+            const uint32_t s0 = _rotate_r(a[0], 2) ^ _rotate_r(a[0], 13) ^ _rotate_r(a[0], 22);
             const uint32_t maj = (a[0] & a[1]) ^ (a[0] & a[2]) ^ (a[1] & a[2]);
             const uint32_t t2 = s0 + maj;
             memcpy(a + 1, a, sizeof(a) - sizeof(a[0]));
