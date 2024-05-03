@@ -3,6 +3,9 @@
  * @author Rob Griffith
  */
 
+#ifndef LOG_H
+#define LOG_H
+
 #include "bufferedio.h"
 
 /**
@@ -44,7 +47,7 @@ const char *log_lvlstr(log_lvl_t lvl);
  * @param[inout] log logging context
  * @param fmt log string format
  * @param ... arguments for log string format
- * @return logged string stored in log context buffer (NULL if error)
+ * @return logged string stored in log context buffer, NULL if error
  */
 const char *log_printf(log_t *log, const char *fmt, ...);
 
@@ -60,7 +63,7 @@ const char *log_printf(log_t *log, const char *fmt, ...);
  * @param lvl logging level
  * @param fmt log string format
  * @param ... arguments for log string format
- * @return logged string stored in log context buffer (NULL if error)
+ * @return logged string stored in log context buffer, NULL if error
  */
 const char *log_printf_long(log_t *log, const char *file, int line, log_lvl_t lvl, const char *fmt, ...);
 
@@ -73,6 +76,8 @@ const char *log_printf_long(log_t *log, const char *file, int line, log_lvl_t lv
  * @param[inout] log logging context
  * @param lvl logging level
  * @param ... arguments for log string format, first argument must be log string format
- * @return logged string stored in log context buffer (NULL if error)
+ * @return logged string stored in log context buffer, NULL if error
  */
 #define log_printfl(log, lvl, ...) log_printf_long(log, __FILE__, __LINE__, lvl, __VA_ARGS__)
+
+#endif

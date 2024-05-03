@@ -196,6 +196,10 @@ int main(int argc, char **argv)
     bufferedio_t output = {0};
     const cli_opt_t *opt;
     /* cli parsing */
+    /**
+     * @todo use URI instead of only file path as input for -i -o -l flags
+     * @todo use uriio_init in all init_XYZ functions (pipes excluded)
+     */
     cli_arg_t args[] = {
         {"key", "key used to pseudo-encrypt input bytes", NULL}};
     cli_opt_t opts[] = {

@@ -175,17 +175,17 @@ void _fdio_dfree(bio_data_t *bd)
     buf_free(&bd->buf);
 }
 
-void fdio_wrap(bufferedio_t *fdb, int fd, size_t bufsz, int cflags)
+void fdio_wrap(bufferedio_t *bio, int fd, size_t bufsz, int cflags)
 {
-    buf_init(&fdb->data.buf, bufsz);
-    fdb->data.offset = 0;
+    buf_init(&bio->data.buf, bufsz);
+    bio->data.offset = 0;
     _fdio_opqd_t opqd = {fd, fd < 0 ? errno : 0, cflags};
-    buf_copy(&fdb->data.opaque, &opqd, sizeof(_fdio_opqd_t));
-    fdb->status = &_fdio_status;
-    fdb->status_str = &_fdio_status_str;
-    fdb->read = &_fdio_read;
-    fdb->write = &_fdio_write;
-    fdb->flush = &_fdio_flush;
-    fdb->seek = &_fdio_seek;
-    fdb->dfree = &_fdio_dfree;
+    buf_copy(&bio->data.opaque, &opqd, sizeof(_fdio_opqd_t));
+    bio->status = &_fdio_status;
+    bio->status_str = &_fdio_status_str;
+    bio->read = &_fdio_read;
+    bio->write = &_fdio_write;
+    bio->flush = &_fdio_flush;
+    bio->seek = &_fdio_seek;
+    bio->dfree = &_fdio_dfree;
 }

@@ -65,7 +65,7 @@ void cli_print_usage(const cli_t *cli);
  *
  * @param cli command line input context
  * @param name name of the argument
- * @return command line input requried argument context (NULL if not found)
+ * @return command line input requried argument context, NULL if not found
  */
 cli_arg_t *cli_get_arg(cli_t *cli, const char *name);
 
@@ -77,7 +77,7 @@ cli_arg_t *cli_get_arg(cli_t *cli, const char *name);
  *
  * @param cli command line input context
  * @param name_l long --name of the option
- * @return command line input option context (NULL if not found)
+ * @return command line input option context, NULL if not found
  */
 cli_opt_t *cli_get_opt(cli_t *cli, const char *name_l);
 

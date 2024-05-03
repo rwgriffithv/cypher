@@ -3,6 +3,9 @@
  * @author Rob Griffith
  */
 
+#ifndef BSTRING_H
+#define BSTRING_H
+
 #include "buffer.h"
 
 #include <stdarg.h>
@@ -14,7 +17,7 @@
  *
  * @param[inout] buf buffer holding prefix string
  * @param str suffix string
- * @return full string in buffer (NULL if failed allocation)
+ * @return full string in buffer, NULL if failed allocation
  */
 const char *bstr_concat(buffer_t *buf, const char *str);
 
@@ -27,7 +30,7 @@ const char *bstr_concat(buffer_t *buf, const char *str);
  * @param[inout] buf buffer to append formatted string into
  * @param fmt string format
  * @param ... arguments for string format
- * @return formatted string appended in buffer (NULL if failed allocation)
+ * @return formatted string appended in buffer, NULL if failed allocation
  */
 const char *bstr_printf(buffer_t *buf, const char *fmt, ...);
 
@@ -40,6 +43,8 @@ const char *bstr_printf(buffer_t *buf, const char *fmt, ...);
  * @param[inout] buf buffer to append formatted string into
  * @param fmt string format
  * @param args variable argument list for string format
- * @return formatted string appended in buffer (NULL if failed allocation)
+ * @return formatted string appended in buffer, NULL if failed allocation
  */
 const char *bstr_vprintf(buffer_t *buf, const char *fmt, va_list args);
+
+#endif
