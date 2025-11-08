@@ -79,18 +79,18 @@ void sha256(bufferedio_t *bio, sha256hash_t *out)
                 state = STATE_DONE;
             }
         }
-        for (size_t i = 0; i < 16; ++i)
+        for (size_t i = 0; i < 16; i++)
         {
             w[i] = _bswap_32(chunk[i]);
         }
-        for (size_t i = 16; i < 64; ++i)
+        for (size_t i = 16; i < 64; i++)
         {
             const uint32_t s0 = _rotate_r(w[i - 15], 7) ^ _rotate_r(w[i - 15], 18) ^ (w[i - 15] >> 3);
             const uint32_t s1 = _rotate_r(w[i - 2], 17) ^ _rotate_r(w[i - 2], 19) ^ (w[i - 2] >> 10);
             w[i] = w[i - 16] + s0 + w[i - 7] + s1;
         }
         memcpy(a, h, sizeof(h));
-        for (size_t i = 0; i < 64; ++i)
+        for (size_t i = 0; i < 64; i++)
         {
             const uint32_t s1 = _rotate_r(a[4], 6) ^ _rotate_r(a[4], 11) ^ _rotate_r(a[4], 25);
             const uint32_t ch = (a[4] & a[5]) ^ ((~a[4]) & a[6]);
@@ -102,13 +102,13 @@ void sha256(bufferedio_t *bio, sha256hash_t *out)
             a[0] = t1 + t2;
             a[4] += t1;
         }
-        for (size_t i = 0; i < 8; ++i)
+        for (size_t i = 0; i < 8; i++)
         {
             h[i] += a[i];
         }
     }
     /* store in little-endian */
-    for (size_t i = 0; i < 8; ++i)
+    for (size_t i = 0; i < 8; i++)
     {
         out->words[7 - i] = h[i];
     }
@@ -117,7 +117,7 @@ void sha256(bufferedio_t *bio, sha256hash_t *out)
 const char *sha256_hexstr(sha256hash_t *hash, sha256hex_t *out)
 {
     char *str = out->str;
-    for (size_t i = 0; i < 32; ++i, str += 2)
+    for (size_t i = 0; i < 32; i++, str += 2)
     {
         snprintf(str, 3, "%02X", hash->bytes[31 - i]);
     }
