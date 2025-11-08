@@ -26,6 +26,13 @@ uint32_t _rotate_r(uint32_t val, size_t n)
 
 void sha256(bufferedio_t *bio, sha256hash_t *out)
 {
+    /* Internal state machine enum */
+    typedef enum
+    {
+        STATE_READING,   /** Actively reading from input */
+        STATE_PAD_EXTRA, /** Need to process one extra, all-pad block */
+        STATE_DONE       /** Finished */
+    } sha256_state_t;
     uint32_t h[8] = {
         0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
     const uint32_t k[64] = {
@@ -41,19 +48,36 @@ void sha256(bufferedio_t *bio, sha256hash_t *out)
     uint32_t w[64]; /* words used per-chunk */
     uint32_t a[8];  /* a, b, c, d, e, f, g, h used per-chunk */
     size_t insz = 0;
-    int reading = 1;
-    while (reading)
+    sha256_state_t state = STATE_READING;
+    while (state != STATE_DONE)
     {
-        const size_t rsz = bio_read(bio, chunk, sizeof(chunk));
+        const size_t rsz = state == STATE_READING ? bio_read(bio, chunk, sizeof(chunk)) : 0;
+        insz += rsz;
         if (rsz != sizeof(chunk))
         {
             uint8_t *end = (uint8_t *)chunk + rsz;
-            end[0] = 0x80;                                                                 /* 1 bit that starts padding */
-            const uint64_t len = _bswap_64((uint64_t)(insz * 8));                          /* big-endian bitlength of original data */
-            const size_t npz = sizeof(chunk) - ((insz + 1 + sizeof(len)) % sizeof(chunk)); /* number of padded zero bytes */
-            memset(end + 1, 0, npz);
-            memcpy(end + 1 + npz, &len, sizeof(len));
-            reading = 0;
+            size_t rcsz = sizeof(chunk) - rsz; /* remaining chunk size */
+            if (state == STATE_READING)
+            {
+                end[0] = 0x80; /* 1 bit that starts padding */
+                end += 1;
+                rcsz -= 1;
+            }
+            if (rcsz < sizeof(uint64_t))
+            {
+                /* no room for 64-bit length, not final chunk */
+                memset(end, 0, rcsz);
+                state = STATE_PAD_EXTRA;
+            }
+            else
+            {
+                /* final chunk, all zero-padding with 64-bit length */
+                const uint64_t len = _bswap_64((uint64_t)(insz * 8)); /* big-endian bitlength of original data */
+                const uint64_t npz = rcsz - sizeof(len);
+                memset(end, 0, npz);
+                memcpy(end + npz, &len, sizeof(len));
+                state = STATE_DONE;
+            }
         }
         for (size_t i = 0; i < 16; ++i)
         {
