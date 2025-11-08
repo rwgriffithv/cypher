@@ -42,9 +42,13 @@ bufferedio_t *_check_stream_status(log_t *log, bufferedio_t *bio, const char *na
     return rv;
 }
 
-log_t *_init_log(cli_t *cli, int bufsz, log_t *log)
+log_t *_init_log(cli_t *cli, int bufsz, log_t *log, int *has_log)
 {
     log_t *rv = log;
+    if (has_log)
+    {
+        *has_log = 0;
+    }
     const cli_opt_t *logopt = cli_get_opt(cli, "logfile");
     if (logopt && logopt->val)
     {
@@ -58,6 +62,10 @@ log_t *_init_log(cli_t *cli, int bufsz, log_t *log)
             fdio_wrap(&log->out, open(logopt->val, OUTFILE_FLAG, OUTFILE_MODE), bufsz, FDIO_CLOSE);
         }
         rv = _check_stream_status(log, &log->out, "log file") ? log : NULL;
+        if (has_log && rv)
+        {
+            *has_log = 1;
+        }
     }
     return rv;
 }
@@ -167,13 +175,17 @@ int _flush_bio_buffers(cli_t *cli, log_t *log, bufferedio_t *output)
     bio_dfree(&outfinal);
     /** write log entirely buffered in memory */
     log_t logfinal = {0};
-    if (_init_log(cli, 0, &logfinal))
+    int has_log;
+    if (_init_log(cli, 0, &logfinal, &has_log))
     {
-        const size_t wsz = bio_write(&logfinal.out, log->out.data.buf.data, log->out.data.buf.size);
-        if (wsz != log->out.data.buf.size)
+        if (has_log)
         {
-            const char *fmt = "only wrote %zu of %zu bytes in fully buffered log\n";
-            fprintf(stderr, fmt, wsz, log->out.data.buf.size);
+            const size_t wsz = bio_write(&logfinal.out, log->out.data.buf.data, log->out.data.buf.size);
+            if (wsz != log->out.data.buf.size)
+            {
+                const char *fmt = "only wrote %zu of %zu bytes in fully buffered log\n";
+                fprintf(stderr, fmt, wsz, log->out.data.buf.size);
+            }
         }
     }
     else
@@ -182,7 +194,7 @@ int _flush_bio_buffers(cli_t *cli, log_t *log, bufferedio_t *output)
         fprintf(stderr, fmt);
         rv = 0;
     }
-    bio_dfree(&outfinal);
+    bio_dfree(&logfinal.out);
     return rv;
 }
 
@@ -230,7 +242,7 @@ int main(int argc, char **argv)
     const int bufsz = atoi(opt ? opt->val : DEF_BUFSZ);
     /* initialization (let all core objects attempt to initialize) */
     size_t init_err = 0;
-    init_err += _init_log(&cli, bufsz, &log) ? 0 : 1;
+    init_err += _init_log(&cli, bufsz, &log, NULL) ? 0 : 1;
     init_err += _init_key(&cli, bufsz, &log, &key) ? 0 : 1;
     init_err += _init_input(&cli, bufsz, &log, &input) ? 0 : 1;
     init_err += _init_output(&cli, bufsz, &log, &output) ? 0 : 1;
